@@ -22,13 +22,18 @@ This repo includes a Pages deployment workflow at [.github/workflows/deploy-page
 2. In GitHub, open `Settings -> Pages`.
 3. Set `Source` to `GitHub Actions`.
 
-### Important limitation
+### Cross-origin isolation on Pages
 
-The UI can be deployed to GitHub Pages, but the in-browser LibreOffice runtime will not function there.
-
-This app requires cross-origin isolation:
+The LibreOffice WASM runtime needs cross-origin isolation:
 
 - `Cross-Origin-Opener-Policy: same-origin`
 - `Cross-Origin-Embedder-Policy: require-corp`
 
-GitHub Pages does not let you configure those response headers, so `SharedArrayBuffer` stays unavailable and conversion is blocked at runtime. For a working production deployment, host the built `dist/` output on a platform where you control response headers.
+For local development, Vite serves those headers directly. For GitHub Pages and other static hosts, this repo ships a `coi-serviceworker.js` bootstrap that re-serves app assets with the required headers so `SharedArrayBuffer` can become available after the first load.
+
+Notes:
+
+- The first visit can reload once while the service worker takes control.
+- The site still needs a secure context, so production hosting must use HTTPS.
+- If a browser blocks service workers or does not support the required isolation features, conversion will remain unavailable.
+

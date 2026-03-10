@@ -258,8 +258,9 @@ function App({ service }: AppProps) {
             <div>
               {!crossOriginReady && (
                 <p>
-                  Cross-origin isolation is required. Production hosting must send `Cross-Origin-Opener-Policy:
-                  same-origin` and `Cross-Origin-Embedder-Policy: require-corp`.
+                  Cross-origin isolation is required. This app will try to enable it automatically with a service
+                  worker on secure static hosting such as GitHub Pages. If conversion stays blocked after reload, the
+                  browser still is not isolated and the site must be served over HTTPS with `COOP/COEP` support.
                 </p>
               )}
               {notice && <p>{notice}</p>}

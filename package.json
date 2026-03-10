@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "cross-env BASE_PATH=/libre-convert/ tsc -b && vite build",
+    "build:pages": "tsc -b && vite build --base=/libre-convert/",
     "lint": "tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
     "test": "vitest run",

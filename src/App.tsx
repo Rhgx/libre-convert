@@ -201,7 +201,7 @@ function App({ service }: AppProps) {
 
   return (
     <main className="shell">
-      <canvas id="qtcanvas" className="qt-canvas" aria-hidden="true" />
+      <canvas id="qtcanvas" className="qt-canvas" width={64} height={64} aria-hidden="true" />
 
       <section className="converter-card">
         <header className="converter-header">

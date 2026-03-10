@@ -345,7 +345,16 @@
   animation: spin 1s linear infinite;
 }
 
-.qt-canvas,
+.qt-canvas {
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+  width: 64px;
+  height: 64px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

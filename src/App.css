@@ -9,7 +9,6 @@
   background: var(--surface-elevated);
 }
 
-.converter-header,
 .action-row,
 .progress-panel,
 .job-list,
@@ -17,18 +16,6 @@
 .callout {
   padding-left: 24px;
   padding-right: 24px;
-}
-
-.converter-header {
-  padding-top: 24px;
-  padding-bottom: 20px;
-}
-
-.converter-header h1 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
 }
 
 .dropzone {
@@ -113,8 +100,7 @@
 
 .progress-head {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   margin-bottom: 10px;
 }
@@ -122,34 +108,6 @@
 .progress-head strong {
   font-size: 0.875rem;
   color: var(--text-strong);
-}
-
-.panel-label {
-  margin: 0 0 4px;
-  font-size: 0.72rem;
-  font-family: var(--font-mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.engine-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.engine-pill--ready {
-  color: var(--accent);
-}
-
-.engine-pill--error {
-  color: var(--danger);
 }
 
 .progress-track,

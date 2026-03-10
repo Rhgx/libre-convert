@@ -204,10 +204,6 @@ function App({ service }: AppProps) {
       <canvas id="qtcanvas" className="qt-canvas" width={64} height={64} aria-hidden="true" />
 
       <section className="converter-card">
-        <header className="converter-header">
-          <h1>Convert to PDF</h1>
-        </header>
-
         <label
           className={`dropzone ${dragActive ? 'dropzone--active' : ''}`}
           onDragEnter={(event) => {
@@ -228,7 +224,7 @@ function App({ service }: AppProps) {
             <Upload size={18} />
           </div>
           <strong>Drag files here</strong>
-          <p>or click to choose supported documents. Format is detected automatically.</p>
+          <p>or click to choose supported documents.</p>
           <span className="dropzone-hint">{supportedExtensions.join(', ')}</span>
           <input
             ref={fileInputRef}
@@ -269,14 +265,10 @@ function App({ service }: AppProps) {
           </div>
         )}
 
-        {jobs.length > 0 && (
+        {jobs.length > 1 && (
           <section className="progress-panel" aria-label="Conversion progress">
             <div className="progress-head">
-              <div>
-                <p className="panel-label">Progress</p>
-                <strong>{activeJob ? `Working on ${activeJob.file.name}` : `${completedJobs} ready`}</strong>
-              </div>
-              <span className={`engine-pill engine-pill--${engineState}`}>{getEngineLabel(engineState)}</span>
+              <strong>{activeJob ? `Working on ${activeJob.file.name}` : `${completedJobs} ready`}</strong>
             </div>
 
             <div className="progress-track" aria-hidden="true">
@@ -294,7 +286,6 @@ function App({ service }: AppProps) {
             {jobs.map((job) => {
               const Icon = iconByPreset[job.presetId]
               const progressValue = getJobProgress(job.status)
-              const isFinished = job.status === 'ready' || job.status === 'error'
 
               return (
                 <li key={job.id} className={`job-card job-card--${job.status}`}>
@@ -307,7 +298,7 @@ function App({ service }: AppProps) {
                         <strong>{job.file.name}</strong>
                         <span>{formatBytes(job.file.size)}</span>
                       </div>
-                      <p>{job.message ?? job.statusLabel}</p>
+                      <p>{job.statusLabel}</p>
                     </div>
                   </div>
 
@@ -356,7 +347,7 @@ function App({ service }: AppProps) {
                     </button>
                   </div>
 
-                  {isFinished && job.message && <p className="job-note">{job.message}</p>}
+                  {job.status === 'error' && job.message && <p className="job-note">{job.message}</p>}
                 </li>
               )
             })}
@@ -401,19 +392,6 @@ function getGlobalProgress(jobs: ConversionJob[]): number {
 
   const total = jobs.reduce((sum, job) => sum + getJobProgress(job.status), 0)
   return Math.round(total / jobs.length)
-}
-
-function getEngineLabel(state: 'idle' | 'booting' | 'ready' | 'error'): string {
-  switch (state) {
-    case 'idle':
-      return 'Idle'
-    case 'booting':
-      return 'Loading engine'
-    case 'ready':
-      return 'Ready'
-    case 'error':
-      return 'Blocked'
-  }
 }
 
 export default App

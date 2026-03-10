@@ -53,6 +53,46 @@ describe('App', () => {
         presetId: 'excel-to-pdf',
       }),
     )
-    expect(screen.getByText(/pdf ready for download/i)).toBeInTheDocument()
+    expect(screen.getByText(/ready to download/i)).toBeInTheDocument()
+  })
+
+  it('hides the global progress header for a single uploaded file', async () => {
+    const user = userEvent.setup()
+    render(<App service={{ convert: vi.fn() }} />)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(
+      input,
+      new File(['hello'], 'memo.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      }),
+    )
+
+    expect(screen.queryByLabelText(/conversion progress/i)).not.toBeInTheDocument()
+    expect(screen.getAllByText('Queued').length).toBeGreaterThan(0)
+  })
+
+  it('keeps internal engine messages out of the job row copy', async () => {
+    const user = userEvent.setup()
+    const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
+      onStatus?.('initializing', 'Starting LibreOffice inside the worker')
+      onStatus?.('converting', 'Exporting PDF output')
+      return new Promise<ArrayBuffer>(() => {})
+    })
+
+    render(<App service={{ convert }} />)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(
+      input,
+      new File(['hello'], 'memo.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
+
+    await waitFor(() => expect(screen.getAllByText('Converting').length).toBeGreaterThan(0))
+    expect(screen.queryByText('Starting LibreOffice inside the worker')).not.toBeInTheDocument()
+    expect(screen.queryByText('Exporting PDF output')).not.toBeInTheDocument()
   })
 })

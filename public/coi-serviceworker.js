@@ -39,6 +39,9 @@ if (typeof window === 'undefined') {
           }
 
           const headers = new Headers(response.headers)
+          headers.delete('Content-Encoding')
+          headers.delete('Content-Length')
+          headers.delete('Transfer-Encoding')
           headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
           headers.set('Cross-Origin-Opener-Policy', 'same-origin')
           headers.set('Cross-Origin-Resource-Policy', 'cross-origin')

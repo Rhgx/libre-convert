@@ -119,7 +119,10 @@ function installWorker(zetaThread: ZetaThreadInstance) {
 }
 
 void (async () => {
-  const zetaHelperModuleUrl = new URL('/vendor/zetajs/1.2.0/zetaHelper.js', globalThis.location.origin).toString()
+  const zetaHelperModuleUrl = new URL(
+    `${import.meta.env.BASE_URL}vendor/zetajs/1.2.0/zetaHelper.js`,
+    globalThis.location.href,
+  ).toString()
   const { ZetaHelperThread } = (await import(/* @vite-ignore */ zetaHelperModuleUrl)) as {
     ZetaHelperThread: new () => ZetaThreadInstance
   }

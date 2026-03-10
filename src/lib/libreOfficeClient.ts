@@ -43,6 +43,54 @@ export interface ConversionService {
   convert(request: ConvertFileRequest): Promise<ArrayBuffer>
 }
 
+type PermissionStatusLike = Pick<PermissionStatus, 'name' | 'state' | 'onchange' | 'addEventListener' | 'removeEventListener' | 'dispatchEvent'>
+
+let clipboardPermissionShimInstalled = false
+
+function createDeniedPermissionStatus(name: 'clipboard-read' | 'clipboard-write'): PermissionStatusLike {
+  return {
+    name,
+    state: 'denied',
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent() {
+      return false
+    },
+  }
+}
+
+function installClipboardPermissionShim() {
+  if (clipboardPermissionShimInstalled || typeof navigator === 'undefined') {
+    return
+  }
+
+  const query = navigator.permissions?.query
+  if (!query) {
+    clipboardPermissionShimInstalled = true
+    return
+  }
+
+  const wrappedQuery: Permissions['query'] = async (descriptor) => {
+    try {
+      return await query.call(navigator.permissions, descriptor)
+    } catch (error) {
+      const name = String((descriptor as PermissionDescriptor & { name?: unknown }).name ?? '')
+      if (
+        error instanceof TypeError &&
+        (name === 'clipboard-read' || name === 'clipboard-write')
+      ) {
+        return createDeniedPermissionStatus(name) as PermissionStatus
+      }
+
+      throw error
+    }
+  }
+
+  navigator.permissions.query = wrappedQuery
+  clipboardPermissionShimInstalled = true
+}
+
 class LibreOfficeClient implements ConversionService {
   private runtime?: ZetaRuntime
   private initPromise?: Promise<ZetaRuntime>
@@ -100,6 +148,7 @@ class LibreOfficeClient implements ConversionService {
 
   private async initializeRuntime(): Promise<ZetaRuntime> {
     const env = import.meta.env as ImportMetaEnv & { VITE_ZETAOFFICE_WASM_PKG?: string }
+    installClipboardPermissionShim()
     const moduleUrl = new URL(`${import.meta.env.BASE_URL}vendor/zetajs/1.2.0/zetaHelper.js`, window.location.href).toString()
     const threadUrl = new URL(libreOfficeThreadUrl, window.location.href).toString()
     const wasmPkg = env.VITE_ZETAOFFICE_WASM_PKG || 'free'

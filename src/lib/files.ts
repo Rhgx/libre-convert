@@ -1,4 +1,4 @@
-import { getPresetById, PRESETS } from './presets'
+import { PRESETS } from './presets'
 import type { ConversionJob, ConversionPreset, ConversionPresetId } from '../types/conversion'
 
 export function getFileExtension(fileName: string): string {
@@ -56,12 +56,11 @@ export function validateFilesForAutoDetect(files: File[]) {
 }
 
 export function createConversionJob(file: File, presetId: ConversionPresetId): ConversionJob {
-  const preset = getPresetById(presetId)
   return {
     id: crypto.randomUUID(),
     presetId,
     file,
     status: 'queued',
-    statusLabel: `Queued for ${preset.label}`,
+    statusLabel: 'Queued',
   }
 }

@@ -1,4 +1,3 @@
-import { getPresetById } from './presets'
 import type { ConversionJob, ConversionJobStatus } from '../types/conversion'
 
 type QueueAction =
@@ -24,7 +23,7 @@ export function queueReducer(state: ConversionJob[], action: QueueAction): Conve
           message: action.message,
           downloadUrl: action.status === 'error' ? undefined : job.downloadUrl,
           outputFileName: action.status === 'error' ? undefined : job.outputFileName,
-          statusLabel: getStatusLabel(job, action.status),
+          statusLabel: getStatusLabel(action.status),
         }
       })
     case 'success':
@@ -39,7 +38,7 @@ export function queueReducer(state: ConversionJob[], action: QueueAction): Conve
           message: undefined,
           downloadUrl: action.downloadUrl,
           outputFileName: action.outputFileName,
-          statusLabel: 'PDF ready for download',
+          statusLabel: 'Ready to download',
         }
       })
     case 'retry':
@@ -54,7 +53,7 @@ export function queueReducer(state: ConversionJob[], action: QueueAction): Conve
           message: undefined,
           downloadUrl: undefined,
           outputFileName: undefined,
-          statusLabel: `Queued for ${getPresetById(job.presetId).label}`,
+          statusLabel: 'Queued',
         }
       })
     case 'remove':
@@ -64,16 +63,16 @@ export function queueReducer(state: ConversionJob[], action: QueueAction): Conve
   }
 }
 
-function getStatusLabel(job: ConversionJob, status: ConversionJobStatus): string {
+function getStatusLabel(status: ConversionJobStatus): string {
   switch (status) {
     case 'queued':
-      return `Queued for ${getPresetById(job.presetId).label}`
+      return 'Queued'
     case 'initializing':
-      return 'Booting the local LibreOffice engine'
+      return 'Preparing'
     case 'converting':
-      return 'Converting document to PDF'
+      return 'Converting'
     case 'ready':
-      return 'PDF ready for download'
+      return 'Ready to download'
     case 'error':
       return 'Conversion failed'
   }

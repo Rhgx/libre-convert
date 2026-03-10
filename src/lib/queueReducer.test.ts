@@ -10,7 +10,7 @@ function createJob(overrides: Partial<ConversionJob> = {}): ConversionJob {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     }),
     status: 'queued',
-    statusLabel: 'Queued for Word to PDF',
+    statusLabel: 'Queued',
     ...overrides,
   }
 }
@@ -46,7 +46,7 @@ describe('queueReducer', () => {
     const ready = [
       createJob({
         status: 'ready',
-        statusLabel: 'PDF ready for download',
+        statusLabel: 'Ready to download',
         downloadUrl: 'blob:pdf',
         outputFileName: 'memo.pdf',
       }),

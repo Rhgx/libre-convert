@@ -2,6 +2,7 @@ import { buildInputPath, buildOutputPath } from './files'
 import { getPresetById } from './presets'
 import { mapWorkerError, parseWorkerResponse } from './workerProtocol'
 import { resolveBundledAssetUrl, resolvePublicAssetUrl } from './assetUrls'
+import { markZetaRuntimeUsed, scheduleZetaRuntimeWarmup } from './zetaRuntimeCache'
 import type { ConvertFileRequest, ConversionJobStatus, WorkerRequest, WorkerResponse } from '../types/conversion'
 import libreOfficeThreadUrl from '../workers/libreOffice.thread.ts?worker&url'
 
@@ -99,6 +100,28 @@ class LibreOfficeClient implements ConversionService {
   private readyRejector?: (error: Error) => void
   private initialized = false
   private pendingJobs = new Map<string, PendingJob>()
+  private readonly env = import.meta.env as ImportMetaEnv & { VITE_ZETAOFFICE_WASM_PKG?: string }
+  private readonly zetaHelperUrl = resolvePublicAssetUrl(
+    'vendor/zetajs/1.2.0/zetaHelper.js',
+    import.meta.env.BASE_URL,
+    import.meta.url,
+  )
+  private readonly zetaJsUrl = resolvePublicAssetUrl(
+    'vendor/zetajs/1.2.0/zeta.js',
+    import.meta.env.BASE_URL,
+    import.meta.url,
+  )
+  private readonly threadUrl = resolveBundledAssetUrl(libreOfficeThreadUrl, import.meta.url)
+  private readonly wasmPkg = this.env.VITE_ZETAOFFICE_WASM_PKG || 'free'
+
+  constructor() {
+    scheduleZetaRuntimeWarmup({
+      wasmPkg: this.wasmPkg,
+      zetaHelperUrl: this.zetaHelperUrl,
+      zetaJsUrl: this.zetaJsUrl,
+      threadUrl: this.threadUrl,
+    })
+  }
 
   async convert({ jobId, file, presetId, onStatus }: ConvertFileRequest): Promise<ArrayBuffer> {
     const runtime = await this.ensureRuntime()
@@ -148,16 +171,8 @@ class LibreOfficeClient implements ConversionService {
   }
 
   private async initializeRuntime(): Promise<ZetaRuntime> {
-    const env = import.meta.env as ImportMetaEnv & { VITE_ZETAOFFICE_WASM_PKG?: string }
     installClipboardPermissionShim()
-    const moduleUrl = resolvePublicAssetUrl(
-      'vendor/zetajs/1.2.0/zetaHelper.js',
-      import.meta.env.BASE_URL,
-      import.meta.url,
-    )
-    const threadUrl = resolveBundledAssetUrl(libreOfficeThreadUrl, import.meta.url)
-    const wasmPkg = env.VITE_ZETAOFFICE_WASM_PKG || 'free'
-    const { ZetaHelperMain } = (await import(/* @vite-ignore */ moduleUrl)) as {
+    const { ZetaHelperMain } = (await import(/* @vite-ignore */ this.zetaHelperUrl)) as {
       ZetaHelperMain: ZetaHelperMainCtor
     }
 
@@ -165,9 +180,9 @@ class LibreOfficeClient implements ConversionService {
       this.readyResolver = resolve
       this.readyRejector = reject
 
-      const helper = new ZetaHelperMain(threadUrl, {
+      const helper = new ZetaHelperMain(this.threadUrl, {
         threadJsType: 'module',
-        wasmPkg,
+        wasmPkg: this.wasmPkg,
         blockPageScroll: false,
       })
 
@@ -205,6 +220,7 @@ class LibreOfficeClient implements ConversionService {
     switch (message.cmd) {
       case 'status':
         if (message.status === 'ready' && this.readyResolver) {
+          markZetaRuntimeUsed()
           this.readyResolver(runtime)
           this.readyResolver = undefined
           this.readyRejector = undefined

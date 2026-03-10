@@ -7,6 +7,7 @@
 .converter-card {
   border: 1px solid var(--border-subtle);
   background: var(--surface-elevated);
+  padding-top: 24px;
 }
 
 .action-row,
@@ -69,6 +70,7 @@
   display: flex;
   justify-content: center;
   padding-top: 18px;
+  padding-bottom: 18px;
 }
 
 .callout {
@@ -341,7 +343,10 @@
     padding-top: 24px;
   }
 
-  .converter-header,
+  .converter-card {
+    padding-top: 16px;
+  }
+
   .action-row,
   .progress-panel,
   .job-list,

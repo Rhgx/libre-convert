@@ -1,4 +1,30 @@
 // ATTENTION: Experimental code! Expect heavy API changes.
+const zetaSuppressedLogPatterns = [
+    'zetaHelper: Loading WASM binaries for ZetaJS from:',
+    'zetaHelper: Configuring Module',
+    'zetaHelper: Loading threadJs as module from:',
+    'zetaHelper: Loading threadJs as script from:',
+    'zetaHelper: Office loaded. No threadJs given.',
+    'QObject::connect(QWindow, QtFrame): invalid nullptr parameter',
+    'warning: unsupported syscall: __syscall_mprotect',
+    'QRect(',
+];
+function shouldSuppressZetaLog(args) {
+    return args.some((arg) => {
+        const message = typeof arg === 'string' ? arg : String(arg ?? '');
+        return zetaSuppressedLogPatterns.some((pattern) => message.includes(pattern));
+    });
+}
+function zetaConsoleLog(...args) {
+    if (shouldSuppressZetaLog(args))
+        return;
+    console.log(...args);
+}
+function zetaConsoleError(...args) {
+    if (shouldSuppressZetaLog(args))
+        return;
+    console.error(...args);
+}
 /**
  * Helper for code in the browsers main thread.
  * @beta
@@ -37,6 +63,8 @@ export class ZetaHelperMain {
             uno_scripts: [zetajsScript, threadWrapScript],
             locateFile: (path, prefix) => { return (prefix || soffice_base_url) + path; },
             modUrlDir,
+            print: (...args) => zetaConsoleLog(...args),
+            printErr: (...args) => zetaConsoleError(...args),
         };
         Module.mainScriptUrlOrBlob = new Blob(["importScripts('" + (new URL('soffice.js', soffice_base_url)) + "');"], { type: 'text/javascript' });
         let lastDevicePixelRatio = window.devicePixelRatio;
@@ -76,7 +104,7 @@ export class ZetaHelperMain {
         soffice_js.src = zHM.soffice_base_url + "soffice.js";
         // "onload" runs after the loaded script has run.
         soffice_js.onload = () => {
-            console.log('zetaHelper: Configuring Module');
+            zetaConsoleLog('zetaHelper: Configuring Module');
             zHM.Module.uno_main.then((pThrPort) => {
                 zHM.thrPort = pThrPort;
                 zHM.FS = window.FS;
@@ -101,7 +129,7 @@ export class ZetaHelperMain {
                 };
             });
         };
-        console.log('zetaHelper: Loading WASM binaries for ZetaJS from: ' + zHM.soffice_base_url);
+        zetaConsoleLog('zetaHelper: Loading WASM binaries for ZetaJS from: ' + zHM.soffice_base_url);
         // Hint: The global objects "canvas" and "Module" must exist before the next line.
         document.body.appendChild(soffice_js);
     }
@@ -133,19 +161,19 @@ export function zetaHelperWrapThread() {
                     let threadJs = e.data.threadJs;
                     if (threadJs) {
                         if (e.data.threadJsType === 'module') {
-                            console.log('zetaHelper: Loading threadJs as module from: ' + threadJs);
+                            zetaConsoleLog('zetaHelper: Loading threadJs as module from: ' + threadJs);
                             import(threadJs).then(module => {
                                 // Make exports of threadJs accessible for debugging.
                                 globalThis.zetajsStore.threadJsContext = module;
                             });
                         }
                         else { // classic
-                            console.log('zetaHelper: Loading threadJs as script from: ' + threadJs);
+                            zetaConsoleLog('zetaHelper: Loading threadJs as script from: ' + threadJs);
                             importScripts(threadJs);
                         }
                     }
                     else {
-                        console.log('zetaHelper: Office loaded. No threadJs given.');
+                        zetaConsoleLog('zetaHelper: Office loaded. No threadJs given.');
                     }
                     break;
                 default:

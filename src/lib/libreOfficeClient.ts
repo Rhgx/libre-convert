@@ -1,6 +1,7 @@
 import { buildInputPath, buildOutputPath } from './files'
 import { getPresetById } from './presets'
 import { mapWorkerError, parseWorkerResponse } from './workerProtocol'
+import { resolveBundledAssetUrl, resolvePublicAssetUrl } from './assetUrls'
 import type { ConvertFileRequest, ConversionJobStatus, WorkerRequest, WorkerResponse } from '../types/conversion'
 import libreOfficeThreadUrl from '../workers/libreOffice.thread.ts?worker&url'
 
@@ -149,8 +150,12 @@ class LibreOfficeClient implements ConversionService {
   private async initializeRuntime(): Promise<ZetaRuntime> {
     const env = import.meta.env as ImportMetaEnv & { VITE_ZETAOFFICE_WASM_PKG?: string }
     installClipboardPermissionShim()
-    const moduleUrl = new URL(`${import.meta.env.BASE_URL}vendor/zetajs/1.2.0/zetaHelper.js`, window.location.href).toString()
-    const threadUrl = new URL(libreOfficeThreadUrl, window.location.href).toString()
+    const moduleUrl = resolvePublicAssetUrl(
+      'vendor/zetajs/1.2.0/zetaHelper.js',
+      import.meta.env.BASE_URL,
+      import.meta.url,
+    )
+    const threadUrl = resolveBundledAssetUrl(libreOfficeThreadUrl, import.meta.url)
     const wasmPkg = env.VITE_ZETAOFFICE_WASM_PKG || 'free'
     const { ZetaHelperMain } = (await import(/* @vite-ignore */ moduleUrl)) as {
       ZetaHelperMain: ZetaHelperMainCtor

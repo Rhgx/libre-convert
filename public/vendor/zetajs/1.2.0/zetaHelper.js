@@ -129,7 +129,7 @@ export function zetaHelperWrapThread() {
             switch (e.data.cmd) {
                 case 'ZetaHelper::run_thr_script':
                     port.onmessage = null;
-                    globalThis.zetajsStore = { zetajs, zJsModule };
+                    globalThis.zetajsStore = { zetajs, zJsModule, ZetaHelperThread };
                     let threadJs = e.data.threadJs;
                     if (threadJs) {
                         if (e.data.threadJsType === 'module') {

@@ -36,6 +36,7 @@ describe('App', () => {
     })
 
     render(<App service={{ convert }} />)
+    expect(screen.queryByRole('combobox', { name: /image layout/i })).not.toBeInTheDocument()
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await user.upload(
@@ -53,9 +54,10 @@ describe('App', () => {
         imageOrientation: 'vertical',
       }),
     )
+    expect(screen.getByRole('combobox', { name: /image layout for photo\.png/i })).toBeInTheDocument()
   })
 
-  it('lets users pick horizontal image layout before converting', async () => {
+  it('shows the layout dropdown only for uploaded images and uses its value', async () => {
     const user = userEvent.setup()
     const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
       onStatus?.('initializing')
@@ -65,8 +67,6 @@ describe('App', () => {
 
     render(<App service={{ convert }} />)
 
-    await user.click(screen.getByRole('button', { name: /horizontal/i }))
-
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await user.upload(
       input,
@@ -74,6 +74,7 @@ describe('App', () => {
         type: 'image/jpeg',
       }),
     )
+    await user.selectOptions(screen.getByRole('combobox', { name: /image layout for banner\.jpg/i }), 'horizontal')
     await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
 
     await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
@@ -83,7 +84,6 @@ describe('App', () => {
         imageOrientation: 'horizontal',
       }),
     )
-    expect(screen.getByText(/horizontal page layout/i)).toBeInTheDocument()
   })
 
   it('auto-detects the preset, converts, and exposes a download link', async () => {
@@ -128,6 +128,7 @@ describe('App', () => {
     )
 
     expect(screen.queryByLabelText(/conversion progress/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /image layout/i })).not.toBeInTheDocument()
     expect(screen.getAllByText('Queued').length).toBeGreaterThan(0)
   })
 

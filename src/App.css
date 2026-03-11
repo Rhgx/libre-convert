@@ -61,60 +61,9 @@
 
 .action-row {
   display: flex;
-  gap: 14px;
-  align-items: end;
   justify-content: center;
   padding-top: 18px;
   padding-bottom: 18px;
-}
-
-.orientation-picker {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-
-.orientation-picker legend {
-  padding: 0;
-  font-size: 0.72rem;
-  font-family: var(--font-mono);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.orientation-toggle {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  background: var(--surface);
-}
-
-.orientation-toggle__option {
-  min-height: 38px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 0.875rem;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.orientation-toggle__option:hover {
-  color: var(--text-strong);
-}
-
-.orientation-toggle__option--active {
-  background: var(--accent);
-  color: #0d1117;
-  font-weight: 500;
 }
 
 .callout {
@@ -262,12 +211,33 @@
   color: var(--text-muted);
 }
 
-.job-meta {
-  display: inline-block;
-  margin-top: 4px;
+.job-select {
+  display: grid;
+  gap: 6px;
+  max-width: 180px;
+  margin-top: 8px;
+}
+
+.job-select__label {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.job-select select {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font: inherit;
+}
+
+.job-select select:disabled {
+  opacity: 0.6;
 }
 
 .job-progress {
@@ -414,17 +384,7 @@
   }
 
   .action-row {
-    align-items: stretch;
-    flex-direction: column;
     justify-content: stretch;
-  }
-
-  .orientation-picker {
-    width: 100%;
-  }
-
-  .orientation-toggle {
-    width: 100%;
   }
 
   .button--primary {

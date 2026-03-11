@@ -1,6 +1,6 @@
 # libre-convert
 
-Browser-based document-to-PDF conversion powered by LibreOffice WASM.
+Browser-based document and image to PDF conversion powered by LibreOffice WASM.
 
 ## Scripts
 
@@ -36,4 +36,3 @@ Notes:
 - The first visit can reload once while the service worker takes control.
 - The site still needs a secure context, so production hosting must use HTTPS.
 - If a browser blocks service workers or does not support the required isolation features, conversion will remain unavailable.
-

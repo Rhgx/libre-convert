@@ -9,7 +9,7 @@ describe('App', () => {
     render(<App service={{ convert: vi.fn() }} />)
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    expect(input.accept).toBe('.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp')
+    expect(input.accept).toBe('.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.png,.jpg,.jpeg,.gif,.bmp')
   })
 
   it('rejects unsupported files during auto-detect', async () => {
@@ -19,12 +19,39 @@ describe('App', () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await user.upload(
       input,
-      new File(['plain text'], 'photo.png', {
-        type: 'image/png',
+      new File(['plain text'], 'archive.zip', {
+        type: 'application/zip',
       }),
     )
 
     expect(screen.getByText(/unsupported file types/i)).toBeInTheDocument()
+  })
+
+  it('auto-detects image files for pdf conversion', async () => {
+    const user = userEvent.setup()
+    const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
+      onStatus?.('initializing')
+      onStatus?.('converting')
+      return new TextEncoder().encode('%PDF-1.4').buffer
+    })
+
+    render(<App service={{ convert }} />)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(
+      input,
+      new File(['pixels'], 'photo.png', {
+        type: 'image/png',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
+    expect(convert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presetId: 'image-to-pdf',
+      }),
+    )
   })
 
   it('auto-detects the preset, converts, and exposes a download link', async () => {

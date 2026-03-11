@@ -28,6 +28,15 @@ export const PRESETS: ConversionPreset[] = [
     family: 'impress',
     filterName: 'impress_pdf_Export',
   },
+  {
+    id: 'image-to-pdf',
+    label: 'Image to PDF',
+    description: 'PNG, JPG, JPEG, GIF, and BMP images are imported into LibreOffice Draw and exported as PDFs.',
+    accept: '.png,.jpg,.jpeg,.gif,.bmp',
+    extensions: ['.png', '.jpg', '.jpeg', '.gif', '.bmp'],
+    family: 'draw',
+    filterName: 'draw_pdf_Export',
+  },
 ]
 
 export function getPresetById(presetId: ConversionPresetId): ConversionPreset {

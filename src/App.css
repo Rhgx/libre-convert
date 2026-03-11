@@ -59,13 +59,6 @@
   color: var(--accent);
 }
 
-.dropzone-hint {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  color: var(--text-dim);
-}
-
 .action-row {
   display: flex;
   justify-content: center;

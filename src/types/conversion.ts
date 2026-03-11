@@ -1,6 +1,6 @@
-export type ConversionPresetId = 'word-to-pdf' | 'excel-to-pdf' | 'powerpoint-to-pdf'
+export type ConversionPresetId = 'word-to-pdf' | 'excel-to-pdf' | 'powerpoint-to-pdf' | 'image-to-pdf'
 
-export type PdfFilterName = 'writer_pdf_Export' | 'calc_pdf_Export' | 'impress_pdf_Export'
+export type PdfFilterName = 'writer_pdf_Export' | 'calc_pdf_Export' | 'impress_pdf_Export' | 'draw_pdf_Export'
 
 export type ConversionJobStatus = 'queued' | 'initializing' | 'converting' | 'ready' | 'error'
 
@@ -10,7 +10,7 @@ export interface ConversionPreset {
   description: string
   accept: string
   extensions: string[]
-  family: 'writer' | 'calc' | 'impress'
+  family: 'writer' | 'calc' | 'impress' | 'draw'
   filterName: PdfFilterName
 }
 

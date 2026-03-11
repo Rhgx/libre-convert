@@ -5,6 +5,7 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  ImageIcon,
   LoaderCircle,
   Presentation,
   Trash2,
@@ -30,6 +31,7 @@ const iconByPreset = {
   'word-to-pdf': FileText,
   'excel-to-pdf': FileSpreadsheet,
   'powerpoint-to-pdf': Presentation,
+  'image-to-pdf': ImageIcon,
 } as const
 
 const acceptedFileTypes = getAcceptedFileTypes()
@@ -224,8 +226,7 @@ function App({ service }: AppProps) {
             <Upload size={18} />
           </div>
           <strong>Drag files here</strong>
-          <p>or click to choose supported documents.</p>
-          <span className="dropzone-hint">{supportedExtensions.join(', ')}</span>
+          <p>or click to choose documents and images for PDF conversion.</p>
           <input
             ref={fileInputRef}
             className="sr-only"

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildInputPath,
   buildOutputPath,
+  createConversionJob,
   detectPresetForFile,
   normalizePdfName,
   validateFilesForAutoDetect,
@@ -42,5 +43,13 @@ describe('file helpers', () => {
     expect(result.valid[1]?.preset.id).toBe('excel-to-pdf')
     expect(result.valid[2]?.preset.id).toBe('image-to-pdf')
     expect(result.invalid[0]?.file.name).toBe('archive.zip')
+  })
+
+  it('stores image orientation on image jobs', () => {
+    const job = createConversionJob(new File(['pixels'], 'photo.png', { type: 'image/png' }), 'image-to-pdf', {
+      imageOrientation: 'horizontal',
+    })
+
+    expect(job.imageOrientation).toBe('horizontal')
   })
 })

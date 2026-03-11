@@ -9,6 +9,8 @@ Browser-based document and image to PDF conversion powered by LibreOffice WASM.
 - PowerPoint to PDF: `PPT`, `PPTX`, `ODP`
 - Image to PDF: `PNG`, `JPG`, `JPEG`, `GIF`, `BMP`
 
+Images can be exported with either a vertical or horizontal PDF page layout.
+
 ## Scripts
 
 - `npm run dev`: local development with the headers required for `SharedArrayBuffer`.

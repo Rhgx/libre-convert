@@ -1,4 +1,5 @@
 import { buildInputPath, buildOutputPath } from './files'
+import { convertImageFileToPdf } from './imagePdf'
 import { getPresetById } from './presets'
 import { mapWorkerError, parseWorkerResponse } from './workerProtocol'
 import { resolveBundledAssetUrl, resolvePublicAssetUrl } from './assetUrls'
@@ -123,7 +124,13 @@ class LibreOfficeClient implements ConversionService {
     })
   }
 
-  async convert({ jobId, file, presetId, onStatus }: ConvertFileRequest): Promise<ArrayBuffer> {
+  async convert({ jobId, file, presetId, imageOrientation, onStatus }: ConvertFileRequest): Promise<ArrayBuffer> {
+    if (presetId === 'image-to-pdf') {
+      onStatus?.('initializing', 'Preparing image for PDF layout')
+      onStatus?.('converting', 'Rendering image into a PDF page')
+      return convertImageFileToPdf(file, imageOrientation ?? 'vertical')
+    }
+
     const runtime = await this.ensureRuntime()
 
     if (!this.initialized) {

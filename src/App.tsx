@@ -21,7 +21,7 @@ import {
 } from './lib/files'
 import { createLibreOfficeClient, type ConversionService } from './lib/libreOfficeClient'
 import { queueReducer } from './lib/queueReducer'
-import type { ConversionJob, ConversionJobStatus } from './types/conversion'
+import type { ConversionJob, ConversionJobStatus, ImageOrientation } from './types/conversion'
 
 type AppProps = {
   service?: ConversionService
@@ -39,6 +39,7 @@ const supportedExtensions = getSupportedExtensions()
 
 function App({ service }: AppProps) {
   const [jobs, dispatch] = useReducer(queueReducer, [])
+  const [imageOrientation, setImageOrientation] = useState<ImageOrientation>('vertical')
   const [notice, setNotice] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [engineState, setEngineState] = useState<'idle' | 'booting' | 'ready' | 'error'>('idle')
@@ -89,7 +90,9 @@ function App({ service }: AppProps) {
 
     dispatch({
       type: 'enqueue',
-      jobs: validation.valid.map(({ file, preset }) => createConversionJob(file, preset.id)),
+      jobs: validation.valid.map(({ file, preset }) =>
+        createConversionJob(file, preset.id, preset.id === 'image-to-pdf' ? { imageOrientation } : undefined),
+      ),
     })
   })
 
@@ -138,6 +141,7 @@ function App({ service }: AppProps) {
           jobId: nextJob.id,
           file: nextJob.file,
           presetId: nextJob.presetId,
+          imageOrientation: nextJob.imageOrientation,
           onStatus: (status, message) => {
             if (status === 'initializing') {
               setEngineState('booting')
@@ -238,6 +242,27 @@ function App({ service }: AppProps) {
         </label>
 
         <div className="action-row">
+          <fieldset className="orientation-picker" aria-label="Image PDF orientation">
+            <legend>Image layout</legend>
+            <div className="orientation-toggle" role="radiogroup" aria-label="Image PDF orientation">
+              <button
+                type="button"
+                className={`orientation-toggle__option ${imageOrientation === 'vertical' ? 'orientation-toggle__option--active' : ''}`}
+                aria-pressed={imageOrientation === 'vertical'}
+                onClick={() => setImageOrientation('vertical')}
+              >
+                Vertical
+              </button>
+              <button
+                type="button"
+                className={`orientation-toggle__option ${imageOrientation === 'horizontal' ? 'orientation-toggle__option--active' : ''}`}
+                aria-pressed={imageOrientation === 'horizontal'}
+                onClick={() => setImageOrientation('horizontal')}
+              >
+                Horizontal
+              </button>
+            </div>
+          </fieldset>
           <button
             type="button"
             className="button button--primary"
@@ -300,6 +325,9 @@ function App({ service }: AppProps) {
                         <span>{formatBytes(job.file.size)}</span>
                       </div>
                       <p>{job.statusLabel}</p>
+                      {job.presetId === 'image-to-pdf' && job.imageOrientation && (
+                        <span className="job-meta">{formatOrientationLabel(job.imageOrientation)} page layout</span>
+                      )}
                     </div>
                   </div>
 
@@ -357,6 +385,10 @@ function App({ service }: AppProps) {
       </section>
     </main>
   )
+}
+
+function formatOrientationLabel(orientation: ImageOrientation): string {
+  return orientation === 'vertical' ? 'Vertical' : 'Horizontal'
 }
 
 function formatBytes(bytes: number): string {

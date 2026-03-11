@@ -39,7 +39,6 @@ const supportedExtensions = getSupportedExtensions()
 
 function App({ service }: AppProps) {
   const [jobs, dispatch] = useReducer(queueReducer, [])
-  const [imageOrientation, setImageOrientation] = useState<ImageOrientation>('vertical')
   const [notice, setNotice] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [engineState, setEngineState] = useState<'idle' | 'booting' | 'ready' | 'error'>('idle')
@@ -90,9 +89,7 @@ function App({ service }: AppProps) {
 
     dispatch({
       type: 'enqueue',
-      jobs: validation.valid.map(({ file, preset }) =>
-        createConversionJob(file, preset.id, preset.id === 'image-to-pdf' ? { imageOrientation } : undefined),
-      ),
+      jobs: validation.valid.map(({ file, preset }) => createConversionJob(file, preset.id)),
     })
   })
 
@@ -205,6 +202,14 @@ function App({ service }: AppProps) {
     setProcessingEnabled(true)
   }
 
+  function handleImageOrientationChange(jobId: string, imageOrientation: ImageOrientation) {
+    dispatch({
+      type: 'imageOrientation',
+      jobId,
+      imageOrientation,
+    })
+  }
+
   return (
     <main className="shell">
       <canvas id="qtcanvas" className="qt-canvas" width={64} height={64} aria-hidden="true" />
@@ -242,27 +247,6 @@ function App({ service }: AppProps) {
         </label>
 
         <div className="action-row">
-          <fieldset className="orientation-picker" aria-label="Image PDF orientation">
-            <legend>Image layout</legend>
-            <div className="orientation-toggle" role="radiogroup" aria-label="Image PDF orientation">
-              <button
-                type="button"
-                className={`orientation-toggle__option ${imageOrientation === 'vertical' ? 'orientation-toggle__option--active' : ''}`}
-                aria-pressed={imageOrientation === 'vertical'}
-                onClick={() => setImageOrientation('vertical')}
-              >
-                Vertical
-              </button>
-              <button
-                type="button"
-                className={`orientation-toggle__option ${imageOrientation === 'horizontal' ? 'orientation-toggle__option--active' : ''}`}
-                aria-pressed={imageOrientation === 'horizontal'}
-                onClick={() => setImageOrientation('horizontal')}
-              >
-                Horizontal
-              </button>
-            </div>
-          </fieldset>
           <button
             type="button"
             className="button button--primary"
@@ -325,8 +309,21 @@ function App({ service }: AppProps) {
                         <span>{formatBytes(job.file.size)}</span>
                       </div>
                       <p>{job.statusLabel}</p>
-                      {job.presetId === 'image-to-pdf' && job.imageOrientation && (
-                        <span className="job-meta">{formatOrientationLabel(job.imageOrientation)} page layout</span>
+                      {job.presetId === 'image-to-pdf' && (
+                        <label className="job-select">
+                          <span className="job-select__label">Image layout</span>
+                          <select
+                            value={job.imageOrientation ?? 'vertical'}
+                            onChange={(event) =>
+                              handleImageOrientationChange(job.id, event.target.value as ImageOrientation)
+                            }
+                            disabled={job.status !== 'queued'}
+                            aria-label={`Image layout for ${job.file.name}`}
+                          >
+                            <option value="vertical">Vertical</option>
+                            <option value="horizontal">Horizontal</option>
+                          </select>
+                        </label>
                       )}
                     </div>
                   </div>
@@ -385,10 +382,6 @@ function App({ service }: AppProps) {
       </section>
     </main>
   )
-}
-
-function formatOrientationLabel(orientation: ImageOrientation): string {
-  return orientation === 'vertical' ? 'Vertical' : 'Horizontal'
 }
 
 function formatBytes(bytes: number): string {

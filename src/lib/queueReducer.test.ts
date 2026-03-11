@@ -59,4 +59,19 @@ describe('queueReducer', () => {
     expect(retried[0]?.downloadUrl).toBeUndefined()
     expect(removed).toHaveLength(0)
   })
+
+  it('updates image job orientation', () => {
+    const state = queueReducer(
+      [
+        createJob({
+          presetId: 'image-to-pdf',
+          file: new File(['pixels'], 'photo.png', { type: 'image/png' }),
+          imageOrientation: 'vertical',
+        }),
+      ],
+      { type: 'imageOrientation', jobId: 'job-1', imageOrientation: 'horizontal' },
+    )
+
+    expect(state[0]?.imageOrientation).toBe('horizontal')
+  })
 })

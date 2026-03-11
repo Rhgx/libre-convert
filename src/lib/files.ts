@@ -64,7 +64,7 @@ export function createConversionJob(
     id: crypto.randomUUID(),
     presetId,
     file,
-    imageOrientation: options?.imageOrientation,
+    imageOrientation: options?.imageOrientation ?? (presetId === 'image-to-pdf' ? 'vertical' : undefined),
     status: 'queued',
     statusLabel: 'Queued',
   }

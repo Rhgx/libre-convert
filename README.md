@@ -2,6 +2,13 @@
 
 Browser-based document and image to PDF conversion powered by LibreOffice WASM.
 
+## Supported formats
+
+- Word to PDF: `DOC`, `DOCX`, `ODT`, `RTF`, `TXT`
+- Excel to PDF: `XLS`, `XLSX`, `ODS`, `CSV`
+- PowerPoint to PDF: `PPT`, `PPTX`, `ODP`
+- Image to PDF: `PNG`, `JPG`, `JPEG`, `GIF`, `BMP`
+
 ## Scripts
 
 - `npm run dev`: local development with the headers required for `SharedArrayBuffer`.

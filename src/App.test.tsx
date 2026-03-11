@@ -50,8 +50,40 @@ describe('App', () => {
     expect(convert).toHaveBeenCalledWith(
       expect.objectContaining({
         presetId: 'image-to-pdf',
+        imageOrientation: 'vertical',
       }),
     )
+  })
+
+  it('lets users pick horizontal image layout before converting', async () => {
+    const user = userEvent.setup()
+    const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
+      onStatus?.('initializing')
+      onStatus?.('converting')
+      return new TextEncoder().encode('%PDF-1.4').buffer
+    })
+
+    render(<App service={{ convert }} />)
+
+    await user.click(screen.getByRole('button', { name: /horizontal/i }))
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(
+      input,
+      new File(['pixels'], 'banner.jpg', {
+        type: 'image/jpeg',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
+    expect(convert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presetId: 'image-to-pdf',
+        imageOrientation: 'horizontal',
+      }),
+    )
+    expect(screen.getByText(/horizontal page layout/i)).toBeInTheDocument()
   })
 
   it('auto-detects the preset, converts, and exposes a download link', async () => {

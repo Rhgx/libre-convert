@@ -1,6 +1,7 @@
 export type ConversionPresetId = 'word-to-pdf' | 'excel-to-pdf' | 'powerpoint-to-pdf' | 'image-to-pdf'
 
 export type PdfFilterName = 'writer_pdf_Export' | 'calc_pdf_Export' | 'impress_pdf_Export' | 'draw_pdf_Export'
+export type ImageOrientation = 'vertical' | 'horizontal'
 
 export type ConversionJobStatus = 'queued' | 'initializing' | 'converting' | 'ready' | 'error'
 
@@ -18,6 +19,7 @@ export interface ConversionJob {
   id: string
   presetId: ConversionPresetId
   file: File
+  imageOrientation?: ImageOrientation
   status: ConversionJobStatus
   statusLabel: string
   message?: string
@@ -60,5 +62,6 @@ export interface ConvertFileRequest {
   jobId: string
   presetId: ConversionPresetId
   file: File
+  imageOrientation?: ImageOrientation
   onStatus?: (status: Extract<ConversionJobStatus, 'initializing' | 'converting'>, message?: string) => void
 }

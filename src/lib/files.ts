@@ -1,5 +1,5 @@
 import { PRESETS } from './presets'
-import type { ConversionJob, ConversionPreset, ConversionPresetId } from '../types/conversion'
+import type { ConversionJob, ConversionPreset, ConversionPresetId, ImageOrientation } from '../types/conversion'
 
 export function getFileExtension(fileName: string): string {
   const lastDotIndex = fileName.lastIndexOf('.')
@@ -55,11 +55,16 @@ export function validateFilesForAutoDetect(files: File[]) {
   return { valid, invalid }
 }
 
-export function createConversionJob(file: File, presetId: ConversionPresetId): ConversionJob {
+export function createConversionJob(
+  file: File,
+  presetId: ConversionPresetId,
+  options?: { imageOrientation?: ImageOrientation },
+): ConversionJob {
   return {
     id: crypto.randomUUID(),
     presetId,
     file,
+    imageOrientation: options?.imageOrientation,
     status: 'queued',
     statusLabel: 'Queued',
   }

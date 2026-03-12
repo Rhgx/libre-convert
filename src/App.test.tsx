@@ -36,7 +36,7 @@ describe('App', () => {
     })
 
     render(<App service={{ convert }} />)
-    expect(screen.queryByRole('combobox', { name: /image layout/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /page orientation/i })).not.toBeInTheDocument()
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await user.upload(
@@ -51,13 +51,13 @@ describe('App', () => {
     expect(convert).toHaveBeenCalledWith(
       expect.objectContaining({
         presetId: 'image-to-pdf',
-        imageOrientation: 'vertical',
+        pageOrientation: 'vertical',
       }),
     )
-    expect(screen.getByRole('combobox', { name: /image layout for photo\.png/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /page orientation for photo\.png/i })).toBeInTheDocument()
   })
 
-  it('shows the layout dropdown only for uploaded images and uses its value', async () => {
+  it('shows page orientation for uploaded images and uses its value', async () => {
     const user = userEvent.setup()
     const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
       onStatus?.('initializing')
@@ -74,19 +74,19 @@ describe('App', () => {
         type: 'image/jpeg',
       }),
     )
-    await user.selectOptions(screen.getByRole('combobox', { name: /image layout for banner\.jpg/i }), 'horizontal')
+    await user.selectOptions(screen.getByRole('combobox', { name: /page orientation for banner\.jpg/i }), 'horizontal')
     await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
 
     await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
     expect(convert).toHaveBeenCalledWith(
       expect.objectContaining({
         presetId: 'image-to-pdf',
-        imageOrientation: 'horizontal',
+        pageOrientation: 'horizontal',
       }),
     )
   })
 
-  it('auto-detects the preset, converts, and exposes a download link', async () => {
+  it('applies page orientation to non-image formats too', async () => {
     const user = userEvent.setup()
     const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
       onStatus?.('initializing')
@@ -103,6 +103,7 @@ describe('App', () => {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       }),
     )
+    await user.selectOptions(screen.getByRole('combobox', { name: /page orientation for sheet\.xlsx/i }), 'horizontal')
     await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
 
     await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
@@ -110,6 +111,7 @@ describe('App', () => {
     expect(convert).toHaveBeenCalledWith(
       expect.objectContaining({
         presetId: 'excel-to-pdf',
+        pageOrientation: 'horizontal',
       }),
     )
     expect(screen.getByText(/ready to download/i)).toBeInTheDocument()
@@ -128,7 +130,7 @@ describe('App', () => {
     )
 
     expect(screen.queryByLabelText(/conversion progress/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /image layout/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /page orientation for memo\.docx/i })).toBeInTheDocument()
     expect(screen.getAllByText('Queued').length).toBeGreaterThan(0)
   })
 

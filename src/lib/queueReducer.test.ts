@@ -9,6 +9,7 @@ function createJob(overrides: Partial<ConversionJob> = {}): ConversionJob {
     file: new File(['test'], 'memo.docx', {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     }),
+    pageOrientation: 'vertical',
     status: 'queued',
     statusLabel: 'Queued',
     ...overrides,
@@ -60,18 +61,18 @@ describe('queueReducer', () => {
     expect(removed).toHaveLength(0)
   })
 
-  it('updates image job orientation', () => {
+  it('updates page orientation for any job', () => {
     const state = queueReducer(
       [
         createJob({
-          presetId: 'image-to-pdf',
-          file: new File(['pixels'], 'photo.png', { type: 'image/png' }),
-          imageOrientation: 'vertical',
+          presetId: 'excel-to-pdf',
+          file: new File(['cells'], 'sheet.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+          pageOrientation: 'vertical',
         }),
       ],
-      { type: 'imageOrientation', jobId: 'job-1', imageOrientation: 'horizontal' },
+      { type: 'pageOrientation', jobId: 'job-1', pageOrientation: 'horizontal' },
     )
 
-    expect(state[0]?.imageOrientation).toBe('horizontal')
+    expect(state[0]?.pageOrientation).toBe('horizontal')
   })
 })

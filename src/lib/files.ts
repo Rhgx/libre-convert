@@ -1,5 +1,5 @@
 import { PRESETS } from './presets'
-import type { ConversionJob, ConversionPreset, ConversionPresetId, ImageOrientation } from '../types/conversion'
+import type { ConversionJob, ConversionPreset, ConversionPresetId, PageOrientation } from '../types/conversion'
 
 export function getFileExtension(fileName: string): string {
   const lastDotIndex = fileName.lastIndexOf('.')
@@ -58,13 +58,13 @@ export function validateFilesForAutoDetect(files: File[]) {
 export function createConversionJob(
   file: File,
   presetId: ConversionPresetId,
-  options?: { imageOrientation?: ImageOrientation },
+  options?: { pageOrientation?: PageOrientation },
 ): ConversionJob {
   return {
     id: crypto.randomUUID(),
     presetId,
     file,
-    imageOrientation: options?.imageOrientation ?? (presetId === 'image-to-pdf' ? 'vertical' : undefined),
+    pageOrientation: options?.pageOrientation ?? 'vertical',
     status: 'queued',
     statusLabel: 'Queued',
   }

@@ -1,5 +1,6 @@
 import { buildInputPath, buildOutputPath } from './files'
 import { convertImageFileToPdf } from './imagePdf'
+import { applyPdfPageOrientation } from './pdfOrientation'
 import { getPresetById } from './presets'
 import { mapWorkerError, parseWorkerResponse } from './workerProtocol'
 import { resolveBundledAssetUrl, resolvePublicAssetUrl } from './assetUrls'
@@ -124,11 +125,13 @@ class LibreOfficeClient implements ConversionService {
     })
   }
 
-  async convert({ jobId, file, presetId, imageOrientation, onStatus }: ConvertFileRequest): Promise<ArrayBuffer> {
+  async convert({ jobId, file, presetId, pageOrientation, onStatus }: ConvertFileRequest): Promise<ArrayBuffer> {
+    const orientation = pageOrientation ?? 'vertical'
+
     if (presetId === 'image-to-pdf') {
       onStatus?.('initializing', 'Preparing image for PDF layout')
       onStatus?.('converting', 'Rendering image into a PDF page')
-      return convertImageFileToPdf(file, imageOrientation ?? 'vertical')
+      return convertImageFileToPdf(file, orientation)
     }
 
     const runtime = await this.ensureRuntime()
@@ -146,7 +149,7 @@ class LibreOfficeClient implements ConversionService {
 
     runtime.fs.writeFile(inputPath, buffer)
 
-    return new Promise<ArrayBuffer>((resolve, reject) => {
+    const pdfBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
       this.pendingJobs.set(jobId, {
         fromPath: inputPath,
         toPath: outputPath,
@@ -163,6 +166,8 @@ class LibreOfficeClient implements ConversionService {
         filterName: preset.filterName,
       } satisfies WorkerRequest)
     })
+
+    return applyPdfPageOrientation(pdfBuffer, orientation)
   }
 
   private async ensureRuntime(): Promise<ZetaRuntime> {

@@ -1,10 +1,10 @@
-import type { ConversionJob, ConversionJobStatus, ImageOrientation } from '../types/conversion'
+import type { ConversionJob, ConversionJobStatus, PageOrientation } from '../types/conversion'
 
 type QueueAction =
   | { type: 'enqueue'; jobs: ConversionJob[] }
   | { type: 'status'; jobId: string; status: ConversionJobStatus; message?: string }
   | { type: 'success'; jobId: string; downloadUrl: string; outputFileName: string }
-  | { type: 'imageOrientation'; jobId: string; imageOrientation: ImageOrientation }
+  | { type: 'pageOrientation'; jobId: string; pageOrientation: PageOrientation }
   | { type: 'retry'; jobId: string }
   | { type: 'remove'; jobId: string }
 
@@ -42,15 +42,15 @@ export function queueReducer(state: ConversionJob[], action: QueueAction): Conve
           statusLabel: 'Ready to download',
         }
       })
-    case 'imageOrientation':
+    case 'pageOrientation':
       return state.map((job) => {
-        if (job.id !== action.jobId || job.presetId !== 'image-to-pdf') {
+        if (job.id !== action.jobId) {
           return job
         }
 
         return {
           ...job,
-          imageOrientation: action.imageOrientation,
+          pageOrientation: action.pageOrientation,
         }
       })
     case 'retry':

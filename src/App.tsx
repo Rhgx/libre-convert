@@ -21,7 +21,7 @@ import {
 } from './lib/files'
 import { createLibreOfficeClient, type ConversionService } from './lib/libreOfficeClient'
 import { queueReducer } from './lib/queueReducer'
-import type { ConversionJob, ConversionJobStatus, ImageOrientation } from './types/conversion'
+import type { ConversionJob, ConversionJobStatus, PageOrientation } from './types/conversion'
 
 type AppProps = {
   service?: ConversionService
@@ -138,7 +138,7 @@ function App({ service }: AppProps) {
           jobId: nextJob.id,
           file: nextJob.file,
           presetId: nextJob.presetId,
-          imageOrientation: nextJob.imageOrientation,
+          pageOrientation: nextJob.pageOrientation,
           onStatus: (status, message) => {
             if (status === 'initializing') {
               setEngineState('booting')
@@ -202,11 +202,11 @@ function App({ service }: AppProps) {
     setProcessingEnabled(true)
   }
 
-  function handleImageOrientationChange(jobId: string, imageOrientation: ImageOrientation) {
+  function handlePageOrientationChange(jobId: string, pageOrientation: PageOrientation) {
     dispatch({
-      type: 'imageOrientation',
+      type: 'pageOrientation',
       jobId,
-      imageOrientation,
+      pageOrientation,
     })
   }
 
@@ -309,22 +309,20 @@ function App({ service }: AppProps) {
                         <span>{formatBytes(job.file.size)}</span>
                       </div>
                       <p>{job.statusLabel}</p>
-                      {job.presetId === 'image-to-pdf' && (
-                        <label className="job-select">
-                          <span className="job-select__label">Image layout</span>
-                          <select
-                            value={job.imageOrientation ?? 'vertical'}
-                            onChange={(event) =>
-                              handleImageOrientationChange(job.id, event.target.value as ImageOrientation)
-                            }
-                            disabled={job.status !== 'queued'}
-                            aria-label={`Image layout for ${job.file.name}`}
-                          >
-                            <option value="vertical">Vertical</option>
-                            <option value="horizontal">Horizontal</option>
-                          </select>
-                        </label>
-                      )}
+                      <label className="job-select">
+                        <span className="job-select__label">Page orientation</span>
+                        <select
+                          value={job.pageOrientation}
+                          onChange={(event) =>
+                            handlePageOrientationChange(job.id, event.target.value as PageOrientation)
+                          }
+                          disabled={job.status !== 'queued'}
+                          aria-label={`Page orientation for ${job.file.name}`}
+                        >
+                          <option value="vertical">Vertical</option>
+                          <option value="horizontal">Horizontal</option>
+                        </select>
+                      </label>
                     </div>
                   </div>
 

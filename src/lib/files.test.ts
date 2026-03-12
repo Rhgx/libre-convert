@@ -45,11 +45,20 @@ describe('file helpers', () => {
     expect(result.invalid[0]?.file.name).toBe('archive.zip')
   })
 
-  it('stores image orientation on image jobs', () => {
+  it('defaults jobs to vertical page orientation', () => {
+    const job = createConversionJob(
+      new File(['hello'], 'memo.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+      'word-to-pdf',
+    )
+
+    expect(job.pageOrientation).toBe('vertical')
+  })
+
+  it('stores custom page orientation on jobs', () => {
     const job = createConversionJob(new File(['pixels'], 'photo.png', { type: 'image/png' }), 'image-to-pdf', {
-      imageOrientation: 'horizontal',
+      pageOrientation: 'horizontal',
     })
 
-    expect(job.imageOrientation).toBe('horizontal')
+    expect(job.pageOrientation).toBe('horizontal')
   })
 })

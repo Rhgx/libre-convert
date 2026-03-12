@@ -1,4 +1,4 @@
-import type { ImageOrientation } from '../types/conversion'
+import type { PageOrientation } from '../types/conversion'
 
 const PDF_PAGE_SIZE = {
   vertical: { width: 595.28, height: 841.89 },
@@ -7,7 +7,7 @@ const PDF_PAGE_SIZE = {
 
 const PDF_MARGIN = 36
 
-export async function convertImageFileToPdf(file: File, orientation: ImageOrientation): Promise<ArrayBuffer> {
+export async function convertImageFileToPdf(file: File, orientation: PageOrientation): Promise<ArrayBuffer> {
   const image = await loadImage(file)
   const jpegData = await rasterizeImageToJpeg(image)
   const pdfBytes = buildImagePdfDocument({
@@ -29,7 +29,7 @@ export function buildImagePdfDocument({
   imageWidth: number
   imageHeight: number
   jpegData: Uint8Array
-  orientation: ImageOrientation
+  orientation: PageOrientation
 }): Uint8Array {
   const page = PDF_PAGE_SIZE[orientation]
   const maxWidth = page.width - PDF_MARGIN * 2

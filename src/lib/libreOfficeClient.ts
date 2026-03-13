@@ -5,6 +5,7 @@ import { getPresetById } from './presets'
 import { mapWorkerError, parseWorkerResponse } from './workerProtocol'
 import { resolveBundledAssetUrl, resolvePublicAssetUrl } from './assetUrls'
 import { markZetaRuntimeUsed, scheduleZetaRuntimeWarmup } from './zetaRuntimeCache'
+import { resolveZetaWasmPkg } from './zetaRuntimeConfig'
 import type { ConvertFileRequest, ConversionJobStatus, WorkerRequest, WorkerResponse } from '../types/conversion'
 import libreOfficeThreadUrl from '../workers/libreOffice.thread.ts?worker&url'
 
@@ -114,7 +115,7 @@ class LibreOfficeClient implements ConversionService {
     import.meta.url,
   )
   private readonly threadUrl = resolveBundledAssetUrl(libreOfficeThreadUrl, import.meta.url)
-  private readonly wasmPkg = this.env.VITE_ZETAOFFICE_WASM_PKG || 'free'
+  private readonly wasmPkg = resolveZetaWasmPkg(this.env.VITE_ZETAOFFICE_WASM_PKG, import.meta.env.BASE_URL, import.meta.url)
 
   constructor() {
     scheduleZetaRuntimeWarmup({

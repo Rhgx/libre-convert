@@ -36,7 +36,9 @@ export type WorkerRequest =
       jobId: string
       fromPath: string
       toPath: string
+      presetFamily: ConversionPreset['family']
       filterName: PdfFilterName
+      pageOrientation: PageOrientation
     }
 
 export type WorkerResponse =

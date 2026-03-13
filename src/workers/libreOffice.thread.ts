@@ -1,4 +1,5 @@
-import type { WorkerRequest } from '../types/conversion'
+import { configureCalcPrintLayout } from './calcPrintLayout'
+import type { PageOrientation, WorkerRequest } from '../types/conversion'
 
 type ZetaThreadInstance = {
   zetajs: {
@@ -11,6 +12,12 @@ type ZetaThreadInstance = {
   css: {
     beans: {
       PropertyValue: new (value: { Name: string; Value: unknown }) => unknown
+    }
+    sheet: {
+      XSpreadsheetDocument: unknown
+    }
+    style: {
+      XStyleFamiliesSupplier: unknown
     }
     util: {
       XCloseable: unknown
@@ -30,11 +37,31 @@ type ZetaStore = {
   ZetaHelperThread?: new () => ZetaThreadInstance
 }
 
+type ModelLike = {
+  close(deliverOwnership: boolean): void
+  queryInterface(type: unknown): unknown
+  storeToURL(url: string, props: unknown[]): void
+}
+
+type SpreadsheetDocumentLike = {
+  getSheets(): {
+    getByName(name: string): unknown
+    getElementNames(): string[]
+  }
+}
+
+type StyleFamiliesSupplierLike = {
+  getStyleFamilies(): {
+    getByName(name: string): unknown
+    getElementNames(): string[]
+  }
+}
+
 function installWorker(zetaThread: ZetaThreadInstance) {
   const zetajs = zetaThread.zetajs
   const css = zetaThread.css
 
-  let currentModel: { close: (deliverOwnership: boolean) => void; queryInterface: (type: unknown) => unknown; storeToURL: (url: string, props: unknown[]) => void } | undefined
+  let currentModel: ModelLike | undefined
   let beanHidden: unknown
   let beanOverwrite: unknown
   let initialized = false
@@ -83,6 +110,11 @@ function installWorker(zetaThread: ZetaThreadInstance) {
 
           const model = zetaThread.desktop.loadComponentFromURL(`file://${event.data.fromPath}`, '_blank', 0, [beanHidden])
           currentModel = model
+
+          if (event.data.presetFamily === 'calc') {
+            configureSpreadsheetDocument(model, event.data.pageOrientation)
+          }
+
           model.storeToURL(`file://${event.data.toPath}`, [beanOverwrite, exportFilter])
 
           zetajs.mainPort.postMessage({
@@ -120,6 +152,22 @@ function installWorker(zetaThread: ZetaThreadInstance) {
   setTimeout(() => {
     zetajs.mainPort.postMessage({ cmd: 'status', status: 'ready' })
   }, 0)
+
+  function configureSpreadsheetDocument(model: ModelLike, orientation: PageOrientation) {
+    const spreadsheetDocument = queryInterface<SpreadsheetDocumentLike>(model, css.sheet.XSpreadsheetDocument)
+    const styleFamiliesSupplier = queryInterface<StyleFamiliesSupplierLike>(model, css.style.XStyleFamiliesSupplier)
+
+    if (!spreadsheetDocument || !styleFamiliesSupplier) {
+      return
+    }
+
+    configureCalcPrintLayout(spreadsheetDocument, styleFamiliesSupplier, orientation)
+  }
+
+  function queryInterface<T>(model: ModelLike, unoType: unknown): T | null {
+    const queried = model.queryInterface(zetajs.type.interface(unoType))
+    return queried ? (queried as T) : null
+  }
 }
 
 void (async () => {

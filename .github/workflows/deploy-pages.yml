@@ -25,10 +25,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -42,10 +42,23 @@ jobs:
       - name: Build site with self-hosted ZetaOffice runtime
         run: npm run build:pages:self-hosted
 
+      - name: Archive Pages artifact
+        run: |
+          tar \
+            --directory dist \
+            -cvf "$RUNNER_TEMP/github-pages-artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            .
+          gzip --force --best "$RUNNER_TEMP/github-pages-artifact.tar"
+
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          path: dist
+          name: github-pages
+          path: ${{ runner.temp }}/github-pages-artifact.tar.gz
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     needs: build

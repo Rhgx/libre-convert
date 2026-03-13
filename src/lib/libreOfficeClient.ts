@@ -163,7 +163,9 @@ class LibreOfficeClient implements ConversionService {
         jobId,
         fromPath: inputPath,
         toPath: outputPath,
+        presetFamily: preset.family,
         filterName: preset.filterName,
+        pageOrientation: orientation,
       } satisfies WorkerRequest)
     })
 

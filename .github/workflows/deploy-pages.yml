@@ -7,11 +7,7 @@ on:
       - master
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 permissions:
-  actions: read
   contents: read
   pages: write
   id-token: write
@@ -26,10 +22,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -40,26 +36,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build site with self-hosted ZetaOffice runtime
-        run: npm run build:pages:self-hosted
-
-      - name: Archive Pages artifact
-        run: |
-          tar \
-            --directory dist \
-            -cvf "$RUNNER_TEMP/github-pages-artifact.tar" \
-            --exclude=.git \
-            --exclude=.github \
-            .
-          gzip --force --best "$RUNNER_TEMP/github-pages-artifact.tar"
+      - name: Build site
+        run: npm run build:pages
 
       - name: Upload Pages artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages
-          path: ${{ runner.temp }}/github-pages-artifact.tar.gz
-          retention-days: 1
-          if-no-files-found: error
+          path: dist
 
   deploy:
     needs: build

@@ -7,8 +7,6 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:pages": "tsc -b && vite build --base=/libre-convert/",
-    "build:pages:self-hosted": "npm run fetch:zeta-runtime && cross-env VITE_ZETAOFFICE_WASM_PKG=self-hosted npm run build:pages",
-    "fetch:zeta-runtime": "node ./scripts/download-zeta-runtime.mjs",
     "lint": "tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
     "test": "vitest run",

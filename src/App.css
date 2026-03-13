@@ -1,13 +1,15 @@
 .shell {
   width: min(680px, calc(100vw - 28px));
   margin: 0 auto;
-  padding: 48px 0 56px;
+  padding: max(32px, env(safe-area-inset-top, 0px) + 24px) 0 max(40px, env(safe-area-inset-bottom, 0px) + 24px);
 }
 
 .converter-card {
   border: 1px solid var(--border-subtle);
+  border-radius: 12px;
   background: var(--surface-elevated);
   padding-top: 24px;
+  overflow: clip;
 }
 
 .action-row,
@@ -165,6 +167,7 @@
 
 .job-main {
   align-items: flex-start;
+  min-width: 0;
 }
 
 .job-icon {
@@ -187,13 +190,13 @@
 .job-topline {
   justify-content: space-between;
   margin-bottom: 4px;
+  min-width: 0;
 }
 
 .job-topline strong {
   font-size: 0.875rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .job-topline span,
@@ -214,7 +217,7 @@
 .job-select {
   display: grid;
   gap: 6px;
-  max-width: 180px;
+  width: min(100%, 220px);
   margin-top: 8px;
 }
 
@@ -242,6 +245,7 @@
 
 .job-progress {
   gap: 10px;
+  min-width: 0;
 }
 
 .job-progress-bar {
@@ -250,6 +254,8 @@
 
 .job-actions {
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .status-chip {
@@ -392,18 +398,121 @@
   }
 
   .progress-head,
-  .job-actions,
   .job-topline {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  .job-card {
+    gap: 14px;
+  }
+
+  .job-topline {
+    gap: 2px;
+  }
+
+  .job-topline strong {
+    width: 100%;
+    font-size: 0.84375rem;
+  }
+
+  .job-select {
+    width: 100%;
+    max-width: none;
+  }
+
   .job-progress {
     align-items: flex-start;
     flex-direction: column;
+    gap: 6px;
   }
 
   .job-progress-bar {
     width: 100%;
+  }
+
+  .job-actions {
+    align-items: stretch;
+  }
+
+  .button--ghost {
+    flex: 1 1 180px;
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    width: min(100vw - 16px, 680px);
+    padding-top: 16px;
+  }
+
+  .converter-card {
+    border-radius: 10px;
+    padding-top: 12px;
+  }
+
+  .action-row,
+  .progress-panel,
+  .job-list,
+  .empty-state,
+  .callout {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .dropzone {
+    margin: 0 12px;
+    padding: 24px 14px;
+  }
+
+  .dropzone strong {
+    font-size: 0.875rem;
+  }
+
+  .dropzone p {
+    max-width: 22ch;
+  }
+
+  .callout {
+    align-items: flex-start;
+  }
+
+  .job-card {
+    padding: 14px 0;
+  }
+
+  .job-main {
+    gap: 8px;
+  }
+
+  .job-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .job-copy p {
+    font-size: 0.78rem;
+  }
+
+  .job-progress span,
+  .job-note,
+  .job-topline span,
+  .job-select__label,
+  .status-chip {
+    font-size: 0.68rem;
+  }
+
+  .job-actions {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .button--ghost {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .icon-button {
+    flex: 0 0 auto;
   }
 }

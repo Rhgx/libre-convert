@@ -1,47 +1,38 @@
-# libre-convert
+# Libre Convert
 
-Browser-based document and image to PDF conversion powered by LibreOffice WASM.
+Convert Word, Excel, PowerPoint, OpenDocument and image files to PDF entirely in your browser. Files never leave your device: conversion runs locally in [LibreOffice compiled to WebAssembly](https://zetaoffice.net/).
+
+**[Open Libre Convert](https://rhgx.github.io/libre-convert/)**
+
+<img src=".github/screenshot.png" alt="Libre Convert with four converted files" width="480">
+
+## Features
+
+- Drop, pick or paste any number of files and convert them in one go.
+- Page layout: keep each file's own setup, or force portrait or landscape. Documents and spreadsheets re-paginate natively, so links and selectable text survive. Slides and images are fitted onto A4.
+- Download files one by one, all at once as a ZIP, or merged into a single PDF.
+- Failed files can be retried. The engine starts loading as soon as you add a document.
+- Works offline after the first conversion, and can be installed as an app.
 
 ## Supported formats
 
-- Word to PDF: `DOC`, `DOCX`, `ODT`, `RTF`, `TXT`
-- Excel to PDF: `XLS`, `XLSX`, `ODS`, `CSV`
-- PowerPoint to PDF: `PPT`, `PPTX`, `ODP`
-- Image to PDF: `PNG`, `JPG`, `JPEG`, `GIF`, `BMP`
+| Type | Extensions |
+| --- | --- |
+| Documents | DOC, DOCX, DOCM, DOTX, ODT, OTT, RTF, TXT |
+| Spreadsheets | XLS, XLSX, XLSM, ODS, OTS, CSV |
+| Presentations | PPT, PPTX, PPS, PPSX, ODP, OTP |
+| Drawings | ODG |
+| Images | PNG, JPG, JPEG, GIF, BMP, WEBP, AVIF |
 
-All supported formats can be exported with either a vertical or horizontal PDF page layout.
+## Browser support
 
-## Scripts
+Tested in Chromium; other current browsers should work. Private browsing modes that block service workers can still convert images, but not documents.
 
-- `npm run dev`: local development with the headers required for `SharedArrayBuffer`.
-- `npm run build`: production build for a root deployment.
-- `npm run build:pages`: production build for GitHub Pages under `/libre-convert/`.
-- `npm test`: unit and component tests.
-- `npm run test:e2e`: Playwright tests.
+## Documentation
 
-## GitHub Pages
+- [How it works](.docs/how-it-works.md): the conversion pipeline, cross-origin isolation, caching and project layout.
+- [Development](.docs/development.md): running, testing and deploying.
 
-This repo includes a Pages deployment workflow at [.github/workflows/deploy-pages.yml](./.github/workflows/deploy-pages.yml). It builds the app with a base path of `/libre-convert/`, which matches a repository Pages URL like:
+## License
 
-`https://<user>.github.io/libre-convert/`
-
-### Required repository settings
-
-1. Push the workflow to the default branch.
-2. In GitHub, open `Settings -> Pages`.
-3. Set `Source` to `GitHub Actions`.
-
-### Cross-origin isolation on Pages
-
-The LibreOffice WASM runtime needs cross-origin isolation:
-
-- `Cross-Origin-Opener-Policy: same-origin`
-- `Cross-Origin-Embedder-Policy: require-corp`
-
-For local development, Vite serves those headers directly. For GitHub Pages and other static hosts, this repo ships a `coi-serviceworker.js` bootstrap that re-serves app assets with the required headers so `SharedArrayBuffer` can become available after the first load.
-
-Notes:
-
-- The first visit can reload once while the service worker takes control.
-- The site still needs a secure context, so production hosting must use HTTPS.
-- If a browser blocks service workers or does not support the required isolation features, conversion will remain unavailable.
+[MIT](LICENSE). The LibreOffice runtime is loaded from ZetaOffice at runtime and is covered by its own license.

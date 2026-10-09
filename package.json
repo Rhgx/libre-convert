@@ -2,6 +2,8 @@
   "name": "libre-convert",
   "private": true,
   "version": "0.0.0",
+  "description": "Convert documents and images to PDF entirely in the browser with LibreOffice WASM.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

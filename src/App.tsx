@@ -1,421 +1,373 @@
-import { useEffect, useEffectEvent, useReducer, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import {
-  AlertTriangle,
-  CheckCircle2,
+  Archive,
+  Combine,
   Download,
   FileSpreadsheet,
   FileText,
   ImageIcon,
   LoaderCircle,
   Presentation,
-  Trash2,
+  RotateCcw,
+  Shapes,
+  TriangleAlert,
   Upload,
+  X,
+  type LucideIcon,
 } from 'lucide-react'
-import './App.css'
-import {
-  createConversionJob,
-  getAcceptedFileTypes,
-  getSupportedExtensions,
-  normalizePdfName,
-  validateFilesForAutoDetect,
-} from './lib/files'
-import { createLibreOfficeClient, type ConversionService } from './lib/libreOfficeClient'
-import { queueReducer } from './lib/queueReducer'
-import type { ConversionJob, ConversionJobStatus, PageOrientation } from './types/conversion'
+import { convertFile, preloadOffice } from './conversion/convert'
+import { ACCEPT, kindOf, pdfName, uniqueNames, type Kind, type Layout } from './conversion/formats'
 
-type AppProps = {
-  service?: ConversionService
+type Job = {
+  id: number
+  file: File
+  kind: Kind
+  status: 'queued' | 'converting' | 'done' | 'error'
+  // Engine progress while converting, the reason when failed.
+  note?: string
+  pdf?: Blob
 }
 
-const iconByPreset = {
-  'word-to-pdf': FileText,
-  'excel-to-pdf': FileSpreadsheet,
-  'powerpoint-to-pdf': Presentation,
-  'image-to-pdf': ImageIcon,
-} as const
+type AppProps = {
+  convert?: typeof convertFile
+  preload?: () => void
+}
 
-const acceptedFileTypes = getAcceptedFileTypes()
-const supportedExtensions = getSupportedExtensions()
+const ICONS: Record<Kind, LucideIcon> = {
+  writer: FileText,
+  calc: FileSpreadsheet,
+  impress: Presentation,
+  draw: Shapes,
+  image: ImageIcon,
+}
 
-function App({ service }: AppProps) {
-  const [jobs, dispatch] = useReducer(queueReducer, [])
-  const [notice, setNotice] = useState<string | null>(null)
-  const [dragActive, setDragActive] = useState(false)
-  const [engineState, setEngineState] = useState<'idle' | 'booting' | 'ready' | 'error'>('idle')
-  const [engineError, setEngineError] = useState<string | null>(null)
-  const [processingEnabled, setProcessingEnabled] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const serviceRef = useRef<ConversionService>(service ?? createLibreOfficeClient())
-  const processingJobIdRef = useRef<string | null>(null)
-  const jobsRef = useRef<ConversionJob[]>(jobs)
+const LAYOUTS: { value: Layout; label: string; hint: string }[] = [
+  { value: 'original', label: 'Original', hint: "Keeps each file's own page size and orientation." },
+  { value: 'portrait', label: 'Portrait', hint: 'Documents and sheets re-flow; slides and images are fitted onto A4.' },
+  { value: 'landscape', label: 'Landscape', hint: 'Documents re-flow, sheets fit to page width; slides and images are fitted onto A4.' },
+]
 
-  useEffect(() => {
-    jobsRef.current = jobs
-  }, [jobs])
+let nextId = 0
 
-  const queuedJobs = jobs.filter((job) => job.status === 'queued')
-  const activeJob = jobs.find((job) => job.status === 'initializing' || job.status === 'converting') ?? null
-  const completedJobs = jobs.filter((job) => job.status === 'ready').length
-  const globalProgress = getGlobalProgress(jobs)
-  const crossOriginReady = window.crossOriginIsolated
+export default function App({ convert = convertFile, preload = preloadOffice }: AppProps) {
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [layout, setLayout] = useState<Layout>('original')
+  const [busy, setBusy] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [notice, setNotice] = useState<string>()
+  // The conversion loop outlives renders, so it reads and writes jobs through this ref; state mirrors it.
+  const jobsRef = useRef<Job[]>([])
+  const busyRef = useRef(false)
 
-  const updateJobStatus = useEffectEvent((jobId: string, status: ConversionJobStatus, message?: string) => {
-    dispatch({
-      type: 'status',
-      jobId,
-      status,
-      message,
-    })
-  })
+  function commit(next: Job[]) {
+    jobsRef.current = next
+    setJobs(next)
+  }
 
-  const enqueueFiles = useEffectEvent((files: FileList | File[]) => {
-    const fileArray = Array.from(files)
-    if (fileArray.length === 0) {
-      return
-    }
+  function patch(id: number, change: Partial<Job>) {
+    commit(jobsRef.current.map((job) => (job.id === id ? { ...job, ...change } : job)))
+  }
 
-    const validation = validateFilesForAutoDetect(fileArray)
+  function addFiles(files: Iterable<File>) {
+    const added: Job[] = []
+    const skipped: string[] = []
 
-    if (validation.invalid.length > 0) {
-      const invalidNames = validation.invalid.map((item) => item.file.name).join(', ')
-      setNotice(`Unsupported file types: ${invalidNames}. Supported formats: ${supportedExtensions.join(', ')}.`)
-    } else {
-      setNotice(null)
-    }
-
-    if (validation.valid.length === 0) {
-      return
-    }
-
-    dispatch({
-      type: 'enqueue',
-      jobs: validation.valid.map(({ file, preset }) => createConversionJob(file, preset.id)),
-    })
-  })
-
-  useEffect(() => {
-    return () => {
-      for (const job of jobsRef.current) {
-        if (job.downloadUrl) {
-          URL.revokeObjectURL(job.downloadUrl)
-        }
+    for (const file of files) {
+      const kind = kindOf(file.name)
+      if (kind) {
+        added.push({ id: nextId++, file, kind, status: 'queued' })
+      } else {
+        skipped.push(file.name)
       }
+    }
+
+    setNotice(skipped.length > 0 ? `Skipped unsupported files: ${skipped.join(', ')}` : undefined)
+    if (added.length === 0) {
+      return
+    }
+
+    commit([...jobsRef.current, ...added])
+    if (added.some((job) => job.kind !== 'image')) {
+      preload()
+    }
+  }
+
+  async function run() {
+    if (busyRef.current) {
+      return
+    }
+
+    busyRef.current = true
+    setBusy(true)
+
+    // Picks up files added or retried while the loop is running.
+    for (let job = findQueued(); job; job = findQueued()) {
+      const { id } = job
+      patch(id, { status: 'converting', note: undefined })
+
+      try {
+        const pdf = await convert(job.file, job.kind, layout, (note) => patch(id, { note }))
+        patch(id, { status: 'done', note: undefined, pdf })
+      } catch (error) {
+        patch(id, { status: 'error', note: error instanceof Error ? error.message : String(error) })
+      }
+    }
+
+    busyRef.current = false
+    setBusy(false)
+  }
+
+  function findQueued() {
+    return jobsRef.current.find((job) => job.status === 'queued')
+  }
+
+  function retry(id: number) {
+    patch(id, { status: 'queued', note: undefined })
+    void run()
+  }
+
+  async function downloadAll() {
+    try {
+      const { zipSync } = await import('fflate')
+      const names = uniqueNames(outputs.map((output) => output.name))
+      const entries = await Promise.all(outputs.map(async (output) => new Uint8Array(await output.pdf.arrayBuffer())))
+      // PDFs are already compressed, so store them as-is.
+      const zip = zipSync(Object.fromEntries(names.map((name, index) => [name, entries[index]])), { level: 0 })
+      save(new Blob([zip], { type: 'application/zip' }), 'libre-convert.zip')
+    } catch (error) {
+      setNotice(`Could not build the ZIP: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  async function merge() {
+    try {
+      const { mergePdfs } = await import('./conversion/pdf')
+      save(await mergePdfs(outputs.map((output) => output.pdf)), 'merged.pdf')
+    } catch (error) {
+      setNotice(`Could not merge the PDFs: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  const onDrop = useEffectEvent((event: DragEvent) => {
+    event.preventDefault()
+    setDragging(false)
+    if (event.dataTransfer) {
+      addFiles(event.dataTransfer.files)
+    }
+  })
+
+  const onPaste = useEffectEvent((event: ClipboardEvent) => {
+    if (event.clipboardData?.files.length) {
+      addFiles(event.clipboardData.files)
+    }
+  })
+
+  // Files can be dropped or pasted anywhere on the page, not just on the drop zone.
+  useEffect(() => {
+    const handleDragOver = (event: DragEvent) => {
+      if (event.dataTransfer?.types.includes('Files')) {
+        event.preventDefault()
+        setDragging(true)
+      }
+    }
+    const handleDragLeave = (event: DragEvent) => {
+      // relatedTarget is null only when the pointer leaves the window.
+      if (!event.relatedTarget) {
+        setDragging(false)
+      }
+    }
+    const handleDrop = (event: DragEvent) => onDrop(event)
+    const handlePaste = (event: ClipboardEvent) => onPaste(event)
+
+    window.addEventListener('dragover', handleDragOver)
+    window.addEventListener('dragleave', handleDragLeave)
+    window.addEventListener('drop', handleDrop)
+    window.addEventListener('paste', handlePaste)
+    return () => {
+      window.removeEventListener('dragover', handleDragOver)
+      window.removeEventListener('dragleave', handleDragLeave)
+      window.removeEventListener('drop', handleDrop)
+      window.removeEventListener('paste', handlePaste)
     }
   }, [])
 
-  useEffect(() => {
-    const hasActiveJob = jobs.some((job) => job.status === 'initializing' || job.status === 'converting')
-
-    if (processingJobIdRef.current && !hasActiveJob) {
-      processingJobIdRef.current = null
-    }
-
-    if (!processingEnabled) {
-      return
-    }
-
-    if (processingJobIdRef.current) {
-      return
-    }
-
-    const nextJob = jobs.find((job) => job.status === 'queued')
-    if (!nextJob) {
-      setProcessingEnabled(false)
-      return
-    }
-
-    processingJobIdRef.current = nextJob.id
-
-    void (async () => {
-      try {
-        setEngineError(null)
-        updateJobStatus(nextJob.id, 'initializing')
-        if (engineState === 'idle') {
-          setEngineState('booting')
-        }
-
-        const pdfBuffer = await serviceRef.current.convert({
-          jobId: nextJob.id,
-          file: nextJob.file,
-          presetId: nextJob.presetId,
-          pageOrientation: nextJob.pageOrientation,
-          onStatus: (status, message) => {
-            if (status === 'initializing') {
-              setEngineState('booting')
-            }
-            if (status === 'converting') {
-              setEngineState('ready')
-            }
-            updateJobStatus(nextJob.id, status, message)
-          },
-        })
-
-        const blob = new Blob([pdfBuffer], { type: 'application/pdf' })
-        const downloadUrl = URL.createObjectURL(blob)
-        dispatch({
-          type: 'success',
-          jobId: nextJob.id,
-          downloadUrl,
-          outputFileName: normalizePdfName(nextJob.file.name),
-        })
-        setEngineState('ready')
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Conversion failed unexpectedly.'
-        setEngineState('error')
-        setEngineError(message)
-        updateJobStatus(nextJob.id, 'error', message)
-      } finally {
-        processingJobIdRef.current = null
-      }
-    })()
-  }, [engineState, jobs, processingEnabled, updateJobStatus])
-
-  function handleFileInputChange(event: React.ChangeEvent<HTMLInputElement>) {
-    if (event.target.files) {
-      enqueueFiles(event.target.files)
-      event.target.value = ''
-    }
-  }
-
-  function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
-    event.preventDefault()
-    setDragActive(false)
-
-    if (event.dataTransfer.files.length > 0) {
-      enqueueFiles(event.dataTransfer.files)
-    }
-  }
-
-  function handleRemove(job: ConversionJob) {
-    if (job.downloadUrl) {
-      URL.revokeObjectURL(job.downloadUrl)
-    }
-    dispatch({ type: 'remove', jobId: job.id })
-  }
-
-  function handleConvertClick() {
-    if (queuedJobs.length === 0) {
-      return
-    }
-
-    setNotice(null)
-    setProcessingEnabled(true)
-  }
-
-  function handlePageOrientationChange(jobId: string, pageOrientation: PageOrientation) {
-    dispatch({
-      type: 'pageOrientation',
-      jobId,
-      pageOrientation,
-    })
-  }
+  const outputs = jobs.flatMap((job) => (job.pdf ? [{ name: pdfName(job.file.name), pdf: job.pdf }] : []))
+  const queued = jobs.filter((job) => job.status === 'queued').length
+  const failed = jobs.filter((job) => job.status === 'error').length
+  const needsIsolation = !window.crossOriginIsolated && jobs.some((job) => job.kind !== 'image' && job.status !== 'done')
 
   return (
     <main className="shell">
-      <canvas id="qtcanvas" className="qt-canvas" width={64} height={64} aria-hidden="true" />
+      <header className="intro">
+        <h1>Libre Convert</h1>
+        <p>Word, Excel, PowerPoint, OpenDocument and images to PDF. Runs entirely in your browser; files never leave your device.</p>
+      </header>
 
-      <section className="converter-card">
-        <label
-          className={`dropzone ${dragActive ? 'dropzone--active' : ''}`}
-          onDragEnter={(event) => {
-            event.preventDefault()
-            setDragActive(true)
-          }}
-          onDragOver={(event) => {
-            event.preventDefault()
-            setDragActive(true)
-          }}
-          onDragLeave={(event) => {
-            event.preventDefault()
-            setDragActive(false)
-          }}
-          onDrop={handleDrop}
-        >
-          <div className="dropzone-badge">
+      <section className="card">
+        <label className={dragging ? 'dropzone dropzone--active' : 'dropzone'}>
+          <span className="dropzone-badge">
             <Upload size={18} />
-          </div>
-          <strong>Drag files here</strong>
-          <p>or click to choose documents and images for PDF conversion.</p>
+          </span>
+          <strong>Drop files here</strong>
+          <span className="muted">or click to choose. Pasting images works too.</span>
           <input
-            ref={fileInputRef}
             className="sr-only"
             type="file"
             multiple
-            accept={acceptedFileTypes}
-            onChange={handleFileInputChange}
+            accept={ACCEPT}
+            onChange={(event) => {
+              addFiles(event.target.files ?? [])
+              event.target.value = ''
+            }}
           />
         </label>
 
-        <div className="action-row">
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={handleConvertClick}
-            disabled={queuedJobs.length === 0 || processingEnabled}
-          >
-            {processingEnabled ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />}
-            {processingEnabled ? 'Converting' : 'Convert to PDF'}
+        <div className="toolbar">
+          <label className="field">
+            <span className="label">Page layout</span>
+            <select
+              value={layout}
+              disabled={busy}
+              onChange={(event) => setLayout(LAYOUTS.find((item) => item.value === event.target.value)?.value ?? 'original')}
+            >
+              {LAYOUTS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="hint">{LAYOUTS.find((item) => item.value === layout)?.hint}</p>
+          <button type="button" className="button button--primary" disabled={busy || queued === 0} onClick={() => void run()}>
+            {busy ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}
+            {busy ? 'Converting' : queued > 1 ? `Convert ${queued} files` : 'Convert to PDF'}
           </button>
         </div>
 
-        {(notice || engineError || !crossOriginReady) && (
+        {(notice || needsIsolation) && (
           <div className="callout">
-            <AlertTriangle size={18} />
+            <TriangleAlert size={16} />
             <div>
-              {!crossOriginReady && (
+              {needsIsolation && (
                 <p>
-                  Cross-origin isolation is required. This app will try to enable it automatically with a service
-                  worker on secure static hosting such as GitHub Pages. If conversion stays blocked after reload, the
-                  browser still is not isolated and the site must be served over HTTPS with `COOP/COEP` support.
+                  Office documents need cross-origin isolation, which this page doesn't have yet. Reload once; if this
+                  stays, the browser is blocking the service worker. Images still convert.
                 </p>
               )}
               {notice && <p>{notice}</p>}
-              {engineError && <p>{engineError}</p>}
             </div>
           </div>
         )}
 
-        {jobs.length > 1 && (
-          <section className="progress-panel" aria-label="Conversion progress">
-            <div className="progress-head">
-              <strong>{activeJob ? `Working on ${activeJob.file.name}` : `${completedJobs} ready`}</strong>
-            </div>
-
-            <div className="progress-track" aria-hidden="true">
-              <span style={{ width: `${globalProgress}%` }} />
-            </div>
-          </section>
-        )}
-
         {jobs.length === 0 ? (
-          <section className="empty-state">
-            <p>Upload one or more files, then press convert.</p>
-          </section>
+          <p className="empty">Add files, pick a page layout, then convert.</p>
         ) : (
-          <ul className="job-list">
-            {jobs.map((job) => {
-              const Icon = iconByPreset[job.presetId]
-              const progressValue = getJobProgress(job.status)
-
-              return (
-                <li key={job.id} className={`job-card job-card--${job.status}`}>
-                  <div className="job-main">
-                    <div className="job-icon">
+          <>
+            <ul className="jobs">
+              {jobs.map((job) => {
+                const Icon = ICONS[job.kind]
+                const { pdf } = job
+                return (
+                  <li key={job.id} className="job">
+                    <span className="job-icon">
                       <Icon size={18} />
-                    </div>
+                    </span>
                     <div className="job-copy">
-                      <div className="job-topline">
+                      <div className="job-name">
                         <strong>{job.file.name}</strong>
-                        <span>{formatBytes(job.file.size)}</span>
+                        <span className="mono">{formatBytes(job.file.size)}</span>
                       </div>
-                      <p>{job.statusLabel}</p>
-                      <label className="job-select">
-                        <span className="job-select__label">Page orientation</span>
-                        <select
-                          value={job.pageOrientation}
-                          onChange={(event) =>
-                            handlePageOrientationChange(job.id, event.target.value as PageOrientation)
-                          }
-                          disabled={job.status !== 'queued'}
-                          aria-label={`Page orientation for ${job.file.name}`}
-                        >
-                          <option value="vertical">Vertical</option>
-                          <option value="horizontal">Horizontal</option>
-                        </select>
-                      </label>
+                      <p className={job.status === 'error' ? 'job-status job-status--error' : 'job-status'}>
+                        {statusText(job)}
+                      </p>
+                      {job.status === 'converting' && <span className="bar" aria-hidden="true" />}
                     </div>
-                  </div>
-
-                  <div className="job-progress">
-                    <div className="job-progress-bar" aria-hidden="true">
-                      <span
-                        className={
-                          job.status === 'error'
-                            ? 'job-progress-bar__fill job-progress-bar__fill--error'
-                            : 'job-progress-bar__fill'
-                        }
-                        style={{ width: `${progressValue}%` }}
-                      />
+                    <div className="job-actions">
+                      {job.status === 'converting' && <LoaderCircle className="spin muted" size={16} aria-hidden="true" />}
+                      {pdf && (
+                        <button type="button" className="button" onClick={() => save(pdf, pdfName(job.file.name))}>
+                          <Download size={15} />
+                          Download
+                        </button>
+                      )}
+                      {job.status === 'error' && (
+                        <button type="button" className="button" onClick={() => retry(job.id)}>
+                          <RotateCcw size={15} />
+                          Retry
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={`Remove ${job.file.name}`}
+                        onClick={() => commit(jobsRef.current.filter((item) => item.id !== job.id))}
+                      >
+                        <X size={15} />
+                      </button>
                     </div>
-                    <span>{job.status === 'ready' ? 'Done' : job.status === 'error' ? 'Failed' : `${progressValue}%`}</span>
-                  </div>
+                  </li>
+                )
+              })}
+            </ul>
 
-                  <div className="job-actions">
-                    {job.status === 'ready' && job.downloadUrl ? (
-                      <a className="button button--ghost" href={job.downloadUrl} download={job.outputFileName}>
-                        <Download size={15} />
-                        Download
-                      </a>
-                    ) : (
-                      <span className={`status-chip status-chip--${job.status}`}>
-                        {job.status === 'converting' || job.status === 'initializing' ? (
-                          <LoaderCircle className="spin" size={14} />
-                        ) : job.status === 'ready' ? (
-                          <CheckCircle2 size={14} />
-                        ) : job.status === 'error' ? (
-                          <AlertTriangle size={14} />
-                        ) : (
-                          <Upload size={14} />
-                        )}
-                        {job.statusLabel}
-                      </span>
-                    )}
-
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Remove ${job.file.name}`}
-                      onClick={() => handleRemove(job)}
-                    >
-                      <Trash2 size={15} />
+            <div className="footer">
+              <span className="mono muted" aria-live="polite">
+                {outputs.length} of {jobs.length} converted{failed > 0 ? `, ${failed} failed` : ''}
+              </span>
+              <div className="footer-actions">
+                {outputs.length > 1 && (
+                  <>
+                    <button type="button" className="button" onClick={() => void downloadAll()}>
+                      <Archive size={15} />
+                      Download all
                     </button>
-                  </div>
-
-                  {job.status === 'error' && job.message && <p className="job-note">{job.message}</p>}
-                </li>
-              )
-            })}
-          </ul>
+                    <button type="button" className="button" onClick={() => void merge()}>
+                      <Combine size={15} />
+                      Merge into one PDF
+                    </button>
+                  </>
+                )}
+                <button type="button" className="button" onClick={() => commit([])}>
+                  Clear
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </section>
     </main>
   )
 }
 
+function statusText(job: Job): string {
+  switch (job.status) {
+    case 'queued':
+      return 'Queued'
+    case 'converting':
+      return job.note ?? 'Converting'
+    case 'done':
+      return job.pdf ? `PDF ready, ${formatBytes(job.pdf.size)}` : 'PDF ready'
+    case 'error':
+      return job.note ?? 'Conversion failed'
+  }
+}
+
+function save(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  link.click()
+  // Revoking right away can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) {
     return `${bytes} B`
   }
-
   if (bytes < 1024 * 1024) {
     return `${(bytes / 1024).toFixed(1)} KB`
   }
-
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
-
-function getJobProgress(status: ConversionJobStatus): number {
-  switch (status) {
-    case 'queued':
-      return 8
-    case 'initializing':
-      return 42
-    case 'converting':
-      return 78
-    case 'ready':
-      return 100
-    case 'error':
-      return 100
-  }
-}
-
-function getGlobalProgress(jobs: ConversionJob[]): number {
-  if (jobs.length === 0) {
-    return 0
-  }
-
-  const total = jobs.reduce((sum, job) => sum + getJobProgress(job.status), 0)
-  return Math.round(total / jobs.length)
-}
-
-export default App

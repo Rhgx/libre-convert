@@ -4,10 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:," />
-    <script type="module" src="/coi-serviceworker.js"></script>
     <title>Libre Convert</title>
   </head>
   <body>
+    <!-- LibreOffice's Qt layer needs a canvas with this id before it starts. It is never shown. -->
+    <canvas id="qtcanvas" class="qt-canvas" width="64" height="64" aria-hidden="true"></canvas>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

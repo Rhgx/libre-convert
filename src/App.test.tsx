@@ -1,160 +1,91 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
-import type { ConvertFileRequest } from './types/conversion'
+import type { convertFile } from './conversion/convert'
+
+const pdf = () => new Blob(['%PDF-1.7'], { type: 'application/pdf' })
+const file = (name: string) => new File(['data'], name)
+
+function setup(convert: typeof convertFile = vi.fn(async () => pdf())) {
+  const preload = vi.fn()
+  render(<App convert={convert} preload={preload} />)
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+  return { user: userEvent.setup({ applyAccept: false }), input, convert, preload }
+}
 
 describe('App', () => {
-  it('accepts every supported office format in the file picker', () => {
-    render(<App service={{ convert: vi.fn() }} />)
+  it('skips unsupported files and keeps the rest', async () => {
+    const { user, input } = setup()
+    await user.upload(input, [file('notes.docx'), file('archive.zip')])
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    expect(input.accept).toBe('.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.png,.jpg,.jpeg,.gif,.bmp')
+    expect(screen.getByText('Skipped unsupported files: archive.zip')).toBeInTheDocument()
+    expect(screen.getByText('notes.docx')).toBeInTheDocument()
+    expect(screen.queryByText('archive.zip')).not.toBeInTheDocument()
   })
 
-  it('rejects unsupported files during auto-detect', async () => {
-    const user = userEvent.setup({ applyAccept: false })
-    render(<App service={{ convert: vi.fn() }} />)
+  it('starts LibreOffice early only when a document is added', async () => {
+    const { user, input, preload } = setup()
+    await user.upload(input, file('photo.png'))
+    expect(preload).not.toHaveBeenCalled()
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(
-      input,
-      new File(['plain text'], 'archive.zip', {
-        type: 'application/zip',
-      }),
-    )
-
-    expect(screen.getByText(/unsupported file types/i)).toBeInTheDocument()
+    await user.upload(input, file('deck.pptx'))
+    expect(preload).toHaveBeenCalledOnce()
   })
 
-  it('auto-detects image files for pdf conversion', async () => {
-    const user = userEvent.setup()
-    const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
-      onStatus?.('initializing')
-      onStatus?.('converting')
-      return new TextEncoder().encode('%PDF-1.4').buffer
+  it('converts every queued file with the chosen layout', async () => {
+    const { user, input, convert } = setup()
+    await user.upload(input, [file('a.docx'), file('b.png')])
+    await user.selectOptions(screen.getByRole('combobox', { name: /page layout/i }), 'landscape')
+    await user.click(screen.getByRole('button', { name: 'Convert 2 files' }))
+
+    expect(await screen.findAllByRole('button', { name: 'Download' })).toHaveLength(2)
+    expect(convert).toHaveBeenNthCalledWith(1, expect.any(File), 'writer', 'landscape', expect.any(Function))
+    expect(convert).toHaveBeenNthCalledWith(2, expect.any(File), 'image', 'landscape', expect.any(Function))
+    expect(screen.getByText('2 of 2 converted')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /download all/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /merge into one pdf/i })).toBeInTheDocument()
+  })
+
+  it('shows the failure and converts again on retry', async () => {
+    const convert = vi.fn<typeof convertFile>().mockRejectedValueOnce(new Error('File is damaged')).mockResolvedValue(pdf())
+    const { user, input } = setup(convert)
+    await user.upload(input, file('broken.xlsx'))
+    await user.click(screen.getByRole('button', { name: 'Convert to PDF' }))
+
+    expect(await screen.findByText('File is damaged')).toBeInTheDocument()
+    expect(screen.getByText('0 of 1 converted, 1 failed')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: 'Download' })).toBeInTheDocument()
+    expect(convert).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows engine progress while a document converts', async () => {
+    let finish = () => {}
+    const convert = vi.fn<typeof convertFile>(async (_file, _kind, _layout, onNote) => {
+      onNote('Downloading LibreOffice')
+      await new Promise<void>((resolve) => (finish = resolve))
+      return pdf()
     })
+    const { user, input } = setup(convert)
+    await user.upload(input, file('slides.odp'))
+    await user.click(screen.getByRole('button', { name: 'Convert to PDF' }))
 
-    render(<App service={{ convert }} />)
-    expect(screen.queryByRole('combobox', { name: /page orientation/i })).not.toBeInTheDocument()
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(
-      input,
-      new File(['pixels'], 'photo.png', {
-        type: 'image/png',
-      }),
-    )
-    await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
-
-    await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
-    expect(convert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        presetId: 'image-to-pdf',
-        pageOrientation: 'vertical',
-      }),
-    )
-    expect(screen.getByRole('combobox', { name: /page orientation for photo\.png/i })).toBeInTheDocument()
+    expect(await screen.findByText('Downloading LibreOffice')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /page layout/i })).toBeDisabled()
+    finish()
+    expect(await screen.findByText(/PDF ready/)).toBeInTheDocument()
   })
 
-  it('shows page orientation for uploaded images and uses its value', async () => {
-    const user = userEvent.setup()
-    const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
-      onStatus?.('initializing')
-      onStatus?.('converting')
-      return new TextEncoder().encode('%PDF-1.4').buffer
-    })
+  it('removes and clears files', async () => {
+    const { user, input } = setup()
+    await user.upload(input, [file('a.docx'), file('b.docx')])
+    await user.click(screen.getByRole('button', { name: 'Remove a.docx' }))
+    expect(screen.queryByText('a.docx')).not.toBeInTheDocument()
 
-    render(<App service={{ convert }} />)
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(
-      input,
-      new File(['pixels'], 'banner.jpg', {
-        type: 'image/jpeg',
-      }),
-    )
-    await user.selectOptions(screen.getByRole('combobox', { name: /page orientation for banner\.jpg/i }), 'horizontal')
-    await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
-
-    await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
-    expect(convert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        presetId: 'image-to-pdf',
-        pageOrientation: 'horizontal',
-      }),
-    )
-  })
-
-  it('applies page orientation to non-image formats too', async () => {
-    const user = userEvent.setup()
-    const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
-      onStatus?.('initializing')
-      onStatus?.('converting')
-      return new TextEncoder().encode('%PDF-1.4').buffer
-    })
-
-    render(<App service={{ convert }} />)
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(
-      input,
-      new File(['hello'], 'sheet.xlsx', {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      }),
-    )
-    await user.selectOptions(screen.getByRole('combobox', { name: /page orientation for sheet\.xlsx/i }), 'horizontal')
-    await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
-
-    await waitFor(() => expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument())
-    expect(convert).toHaveBeenCalledTimes(1)
-    expect(convert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        presetId: 'excel-to-pdf',
-        pageOrientation: 'horizontal',
-      }),
-    )
-    expect(screen.getByText(/ready to download/i)).toBeInTheDocument()
-  })
-
-  it('hides the global progress header for a single uploaded file', async () => {
-    const user = userEvent.setup()
-    render(<App service={{ convert: vi.fn() }} />)
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(
-      input,
-      new File(['hello'], 'memo.docx', {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      }),
-    )
-
-    expect(screen.queryByLabelText(/conversion progress/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: /page orientation for memo\.docx/i })).toBeInTheDocument()
-    expect(screen.getAllByText('Queued').length).toBeGreaterThan(0)
-  })
-
-  it('keeps internal engine messages out of the job row copy', async () => {
-    const user = userEvent.setup()
-    const convert = vi.fn(async ({ onStatus }: ConvertFileRequest) => {
-      onStatus?.('initializing', 'Starting LibreOffice inside the worker')
-      onStatus?.('converting', 'Exporting PDF output')
-      return new Promise<ArrayBuffer>(() => {})
-    })
-
-    render(<App service={{ convert }} />)
-
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(
-      input,
-      new File(['hello'], 'memo.docx', {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      }),
-    )
-    await user.click(screen.getByRole('button', { name: /convert to pdf/i }))
-
-    await waitFor(() => expect(screen.getAllByText('Converting').length).toBeGreaterThan(0))
-    expect(screen.queryByText('Starting LibreOffice inside the worker')).not.toBeInTheDocument()
-    expect(screen.queryByText('Exporting PDF output')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(screen.getByText(/add files/i)).toBeInTheDocument()
   })
 })

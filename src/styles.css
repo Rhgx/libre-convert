@@ -1,0 +1,421 @@
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+
+:root {
+  --surface: #111417;
+  --surface-elevated: #191d21;
+  --border-subtle: #252a2f;
+  --border-strong: #353b42;
+  --text-strong: #e4e8ec;
+  --text-muted: #8b949c;
+  --text-dim: #636d76;
+  --accent: #58a6ff;
+  --danger: #f47067;
+  --pad: 24px;
+
+  color-scheme: dark;
+  font-family: 'IBM Plex Sans', sans-serif;
+  line-height: 1.5;
+  color: var(--text-strong);
+  background: var(--surface);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shell {
+  width: min(680px, 100% - 28px);
+  margin: 0 auto;
+  padding: 40px 0;
+}
+
+.intro {
+  margin-bottom: 16px;
+}
+
+.intro h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.intro p {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  padding-top: var(--pad);
+}
+
+.dropzone {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 0 var(--pad);
+  padding: 32px var(--pad);
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.dropzone:hover,
+.dropzone:focus-within,
+.dropzone--active {
+  border-color: var(--accent);
+}
+
+.dropzone strong {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.dropzone .muted {
+  font-size: 0.8125rem;
+}
+
+.dropzone-badge,
+.job-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--accent);
+}
+
+.dropzone-badge {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 4px;
+  background: var(--surface-elevated);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: end;
+  gap: 8px 16px;
+  padding: 18px var(--pad);
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.label,
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.label {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.field select {
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 0.875rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.field select:disabled {
+  opacity: 0.6;
+}
+
+.hint {
+  margin: 0;
+  align-self: end;
+  padding-bottom: 9px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.callout {
+  display: flex;
+  gap: 10px;
+  padding: 0 var(--pad) 16px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.callout svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--danger);
+}
+
+.callout p {
+  margin: 0;
+}
+
+.callout p + p {
+  margin-top: 6px;
+}
+
+.empty {
+  margin: 0;
+  padding: 0 var(--pad) var(--pad);
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.jobs {
+  margin: 0;
+  padding: 0 var(--pad);
+  list-style: none;
+}
+
+.job {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.job-icon {
+  background: var(--surface);
+}
+
+.job-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.job-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.job-name strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-name .mono {
+  flex: none;
+}
+
+.job-status {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.job-status--error {
+  color: var(--danger);
+}
+
+.bar {
+  position: relative;
+  display: block;
+  height: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--border-subtle);
+}
+
+.bar::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 30%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: slide 1.2s ease-in-out infinite;
+}
+
+.job-actions,
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px var(--pad);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.footer-actions {
+  flex-wrap: wrap;
+}
+
+.button,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  transition: border-color 150ms ease, opacity 150ms ease;
+}
+
+.button:hover,
+.icon-button:hover {
+  border-color: var(--accent);
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.button--primary {
+  min-width: 190px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #0d1117;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.button--primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.icon-button {
+  width: 34px;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.qt-canvas {
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .bar::after {
+    animation-duration: 3s;
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --pad: 14px;
+  }
+
+  .shell {
+    width: calc(100% - 16px);
+    padding: 20px 0;
+  }
+
+  .card {
+    border-radius: 10px;
+  }
+
+  .dropzone {
+    padding: 24px var(--pad);
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .button--primary {
+    width: 100%;
+  }
+
+  .job-icon {
+    display: none;
+  }
+}

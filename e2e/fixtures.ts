@@ -170,3 +170,12 @@ export function createPptxFixture(): UploadedFile {
 function xml(source: string): Uint8Array {
   return strToU8(source.replace(/>\s+</g, '><').trim())
 }
+
+export function createPngFixture(): UploadedFile {
+  // 2x1 red pixels.
+  return {
+    name: 'smoke.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8Dwn4EBAAj+Af9IxWaQAAAAAElFTkSuQmCC', 'base64'),
+  }
+}

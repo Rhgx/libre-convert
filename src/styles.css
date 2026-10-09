@@ -101,6 +101,25 @@ button {
   font-weight: 500;
 }
 
+.dropzone--compact {
+  grid-auto-flow: column;
+  justify-content: start;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.dropzone--compact .dropzone-badge {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+}
+
+.dropzone--compact strong {
+  font-size: 0.875rem;
+}
+
 .dropzone .muted {
   font-size: 0.8125rem;
 }
@@ -127,14 +146,20 @@ button {
 .toolbar {
   display: grid;
   grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
   align-items: end;
-  gap: 8px 16px;
+  gap: 0 16px;
   padding: 18px var(--pad);
 }
 
 .field {
   display: grid;
+  grid-row: 1 / span 2;
   gap: 4px;
+}
+
+.toolbar .button--primary {
+  grid-row: 1 / span 2;
 }
 
 .label,
@@ -163,9 +188,13 @@ button {
 }
 
 .hint {
-  margin: 0;
+  /* Sits on the select's row (the label is above it) so both stay centred on each other. */
+  grid-row: 1 / span 2;
   align-self: end;
-  padding-bottom: 9px;
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  margin: 0;
   font-size: 0.75rem;
   color: var(--text-dim);
 }
@@ -177,6 +206,7 @@ button {
 .callout {
   display: flex;
   gap: 10px;
+  margin: 0;
   padding: 0 var(--pad) 16px;
   font-size: 0.8125rem;
   color: var(--text-muted);
@@ -188,17 +218,9 @@ button {
   color: var(--danger);
 }
 
-.callout p {
-  margin: 0;
-}
-
-.callout p + p {
-  margin-top: 6px;
-}
-
 .empty {
   margin: 0;
-  padding: 0 var(--pad) var(--pad);
+  padding: 14px var(--pad) var(--pad);
   text-align: center;
   font-size: 0.875rem;
   color: var(--text-muted);
@@ -288,14 +310,30 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 10px 14px;
   padding: 14px var(--pad);
   border-top: 1px solid var(--border-subtle);
 }
 
 .footer-actions {
   flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* Clear sits with the count, away from the download actions, and looks like what it is: a minor action. */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link:hover {
+  color: var(--text-strong);
 }
 
 .button,
@@ -347,6 +385,18 @@ button {
 
 .spin {
   animation: spin 1s linear infinite;
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  background: rgb(17 20 23 / 0.85);
+  font-weight: 500;
+  pointer-events: none;
 }
 
 .qt-canvas {
@@ -402,13 +452,43 @@ button {
     border-radius: 10px;
   }
 
-  .dropzone {
+  .dropzone:not(.dropzone--compact) {
     padding: 24px var(--pad);
+  }
+
+  .dropzone--compact .muted {
+    display: none;
+  }
+
+  /* Icon-only row buttons leave room for the file name; the label stays for screen readers. */
+  .job-actions .button {
+    width: 34px;
+    padding: 0;
+  }
+
+  .job-actions .button-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .toolbar {
     grid-template-columns: 1fr;
-    align-items: stretch;
+    grid-template-rows: none;
+    gap: 8px;
+  }
+
+  .field,
+  .hint,
+  .toolbar .button--primary {
+    grid-row: auto;
+  }
+
+  .hint {
+    min-height: 0;
   }
 
   .button--primary {

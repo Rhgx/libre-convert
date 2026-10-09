@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import type { convertFile } from './conversion/convert'
 
@@ -14,6 +14,8 @@ function setup(convert: typeof convertFile = vi.fn(async () => pdf())) {
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
   return { user: userEvent.setup({ applyAccept: false }), input, convert, preload }
 }
+
+beforeEach(() => window.localStorage.clear())
 
 describe('App', () => {
   it('skips unsupported files and keeps the rest', async () => {
@@ -74,9 +76,51 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Convert to PDF' }))
 
     expect(await screen.findByText('Downloading LibreOffice')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Converting 1 of 1' })).toBeDisabled()
     expect(screen.getByRole('combobox', { name: /page layout/i })).toBeDisabled()
     finish()
     expect(await screen.findByText(/PDF ready/)).toBeInTheDocument()
+  })
+
+  it('converts everything again with a new layout once done', async () => {
+    const { user, input, convert } = setup()
+    await user.upload(input, file('a.docx'))
+    await user.click(screen.getByRole('button', { name: 'Convert to PDF' }))
+    await screen.findByRole('button', { name: 'Download' })
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /page layout/i }), 'portrait')
+    await user.click(screen.getByRole('button', { name: 'Convert all again' }))
+    await screen.findByRole('button', { name: 'Download' })
+    expect(convert).toHaveBeenLastCalledWith(expect.any(File), 'writer', 'portrait', expect.any(Function))
+  })
+
+  it('remembers the page layout', async () => {
+    const first = setup()
+    await first.user.upload(first.input, file('a.docx'))
+    await first.user.selectOptions(screen.getByRole('combobox', { name: /page layout/i }), 'landscape')
+    cleanup()
+
+    const second = setup()
+    await second.user.upload(second.input, file('b.docx'))
+    expect(screen.getByRole('combobox', { name: /page layout/i })).toHaveValue('landscape')
+  })
+
+  it('tags outputs made with a layout other than the selected one', async () => {
+    const { user, input } = setup()
+    await user.upload(input, file('a.docx'))
+    await user.click(screen.getByRole('button', { name: 'Convert to PDF' }))
+    expect(await screen.findByText('PDF ready, 8 B')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /page layout/i }), 'landscape')
+    expect(screen.getByText('PDF ready, 8 B (original)')).toBeInTheDocument()
+  })
+
+  it('converts with Ctrl+Enter', async () => {
+    const { user, input, convert } = setup()
+    await user.upload(input, file('a.odt'))
+    await user.keyboard('{Control>}{Enter}{/Control}')
+    await screen.findByRole('button', { name: 'Download' })
+    expect(convert).toHaveBeenCalledOnce()
   })
 
   it('removes and clears files', async () => {
@@ -86,6 +130,7 @@ describe('App', () => {
     expect(screen.queryByText('a.docx')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Clear' }))
-    expect(screen.getByText(/add files/i)).toBeInTheDocument()
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   })
 })

@@ -64,9 +64,10 @@ test('converts documents and images locally with every page layout', async ({ pa
   expect(await pageSizes(merged.bytes)).toHaveLength(4)
 
   // Landscape: text and sheets re-paginate natively, slides are fitted onto A4.
+  // The layout control only appears once files are listed.
   await page.getByRole('button', { name: 'Clear' }).click()
-  await page.getByRole('combobox', { name: /page layout/i }).selectOption('landscape')
   await page.locator('input[type="file"]').setInputFiles([docx, xlsx, pptx])
+  await page.getByRole('combobox', { name: /page layout/i }).selectOption('landscape')
   await convert(page, 3)
 
   const landscape = async (name: string) =>
@@ -78,8 +79,8 @@ test('converts documents and images locally with every page layout', async ({ pa
 
   // Portrait turns the slide deck into A4 portrait pages.
   await page.getByRole('button', { name: 'Clear' }).click()
-  await page.getByRole('combobox', { name: /page layout/i }).selectOption('portrait')
   await page.locator('input[type="file"]').setInputFiles([pptx])
+  await page.getByRole('combobox', { name: /page layout/i }).selectOption('portrait')
   await convert(page, 1)
   expect(await landscape(pptx.name)).toEqual([[595, 842]])
 

@@ -26,6 +26,8 @@ type Job = {
   // Engine progress while converting, the reason when failed.
   note?: string
   pdf?: Blob
+  // The layout the PDF was made with; shown when it differs from the current choice.
+  layout?: Layout
 }
 
 type AppProps = {
@@ -47,11 +49,17 @@ const LAYOUTS: { value: Layout; label: string; hint: string }[] = [
   { value: 'landscape', label: 'Landscape', hint: 'Documents re-flow, sheets fit to page width; slides and images are fitted onto A4.' },
 ]
 
+const LAYOUT_KEY = 'libre-convert:layout'
+const TITLE = document.title
+const SHORTCUT = /Mac|iPhone|iPad/.test(navigator.platform) ? 'Cmd+Enter' : 'Ctrl+Enter'
+
 let nextId = 0
 
 export default function App({ convert = convertFile, preload = preloadOffice }: AppProps) {
   const [jobs, setJobs] = useState<Job[]>([])
-  const [layout, setLayout] = useState<Layout>('original')
+  const [layout, setLayout] = useState<Layout>(
+    () => LAYOUTS.find((item) => item.value === window.localStorage.getItem(LAYOUT_KEY))?.value ?? 'original',
+  )
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [notice, setNotice] = useState<string>()
@@ -107,7 +115,7 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
 
       try {
         const pdf = await convert(job.file, job.kind, layout, (note) => patch(id, { note }))
-        patch(id, { status: 'done', note: undefined, pdf })
+        patch(id, { status: 'done', note: undefined, pdf, layout })
       } catch (error) {
         patch(id, { status: 'error', note: error instanceof Error ? error.message : String(error) })
       }
@@ -123,6 +131,14 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
 
   function retry(id: number) {
     patch(id, { status: 'queued', note: undefined })
+    void run()
+  }
+
+  // Converts what is queued, or everything again (e.g. after switching the page layout).
+  function convertAll() {
+    if (!jobsRef.current.some((job) => job.status === 'queued')) {
+      commit(jobsRef.current.map((job) => ({ ...job, status: 'queued', note: undefined, pdf: undefined, layout: undefined })))
+    }
     void run()
   }
 
@@ -149,9 +165,9 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
   }
 
   const onDrop = useEffectEvent((event: DragEvent) => {
-    event.preventDefault()
     setDragging(false)
-    if (event.dataTransfer) {
+    if (event.dataTransfer?.types.includes('Files')) {
+      event.preventDefault()
       addFiles(event.dataTransfer.files)
     }
   })
@@ -159,6 +175,13 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
   const onPaste = useEffectEvent((event: ClipboardEvent) => {
     if (event.clipboardData?.files.length) {
       addFiles(event.clipboardData.files)
+    }
+  })
+
+  const onShortcut = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !busyRef.current && jobsRef.current.length > 0) {
+      event.preventDefault()
+      convertAll()
     }
   })
 
@@ -178,38 +201,48 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
     }
     const handleDrop = (event: DragEvent) => onDrop(event)
     const handlePaste = (event: ClipboardEvent) => onPaste(event)
+    const handleKeyDown = (event: KeyboardEvent) => onShortcut(event)
 
     window.addEventListener('dragover', handleDragOver)
     window.addEventListener('dragleave', handleDragLeave)
     window.addEventListener('drop', handleDrop)
     window.addEventListener('paste', handlePaste)
+    window.addEventListener('keydown', handleKeyDown)
     return () => {
       window.removeEventListener('dragover', handleDragOver)
       window.removeEventListener('dragleave', handleDragLeave)
       window.removeEventListener('drop', handleDrop)
       window.removeEventListener('paste', handlePaste)
+      window.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
+
 
   const outputs = jobs.flatMap((job) => (job.pdf ? [{ name: pdfName(job.file.name), pdf: job.pdf }] : []))
   const queued = jobs.filter((job) => job.status === 'queued').length
   const failed = jobs.filter((job) => job.status === 'error').length
-  const needsIsolation = !window.crossOriginIsolated && jobs.some((job) => job.kind !== 'image' && job.status !== 'done')
+  const finished = outputs.length + failed
+
+  useEffect(() => {
+    document.title = busy ? `(${finished}/${jobs.length}) ${TITLE}` : TITLE
+  }, [busy, finished, jobs.length])
 
   return (
     <main className="shell">
       <header className="intro">
         <h1>Libre Convert</h1>
-        <p>Word, Excel, PowerPoint, OpenDocument and images to PDF. Runs entirely in your browser; files never leave your device.</p>
+        <p>Office documents and images to PDF, entirely in your browser. Files never leave your device.</p>
       </header>
 
       <section className="card">
-        <label className={dragging ? 'dropzone dropzone--active' : 'dropzone'}>
+        <label className={['dropzone', jobs.length > 0 && 'dropzone--compact', dragging && 'dropzone--active'].filter(Boolean).join(' ')}>
           <span className="dropzone-badge">
-            <Upload size={18} />
+            <Upload size={jobs.length > 0 ? 16 : 18} />
           </span>
-          <strong>Drop files here</strong>
-          <span className="muted">or click to choose. Pasting images works too.</span>
+          <strong>{jobs.length > 0 ? 'Add more files' : 'Drop files here'}</strong>
+          <span className="muted">
+            {jobs.length > 0 ? 'Drop, click or paste' : 'or click to choose. Pasting images works too.'}
+          </span>
           <input
             className="sr-only"
             type="file"
@@ -222,45 +255,55 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
           />
         </label>
 
-        <div className="toolbar">
-          <label className="field">
-            <span className="label">Page layout</span>
-            <select
-              value={layout}
+        {jobs.length > 0 && (
+          <div className="toolbar">
+            <label className="field">
+              <span className="label">Page layout</span>
+              <select
+                value={layout}
+                disabled={busy}
+                onChange={(event) => {
+                  const value = LAYOUTS.find((item) => item.value === event.target.value)?.value ?? 'original'
+                  setLayout(value)
+                  window.localStorage.setItem(LAYOUT_KEY, value)
+                }}
+              >
+                {LAYOUTS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="hint">{LAYOUTS.find((item) => item.value === layout)?.hint}</p>
+            <button
+              type="button"
+              className="button button--primary"
               disabled={busy}
-              onChange={(event) => setLayout(LAYOUTS.find((item) => item.value === event.target.value)?.value ?? 'original')}
+              title={SHORTCUT}
+              onClick={convertAll}
             >
-              {LAYOUTS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="hint">{LAYOUTS.find((item) => item.value === layout)?.hint}</p>
-          <button type="button" className="button button--primary" disabled={busy || queued === 0} onClick={() => void run()}>
-            {busy ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}
-            {busy ? 'Converting' : queued > 1 ? `Convert ${queued} files` : 'Convert to PDF'}
-          </button>
-        </div>
-
-        {(notice || needsIsolation) && (
-          <div className="callout">
-            <TriangleAlert size={16} />
-            <div>
-              {needsIsolation && (
-                <p>
-                  Office documents need cross-origin isolation, which this page doesn't have yet. Reload once; if this
-                  stays, the browser is blocking the service worker. Images still convert.
-                </p>
-              )}
-              {notice && <p>{notice}</p>}
-            </div>
+              {busy ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}
+              {busy
+                ? `Converting ${Math.min(finished + 1, jobs.length)} of ${jobs.length}`
+                : queued > 1
+                  ? `Convert ${queued} files`
+                  : queued === 1
+                    ? 'Convert to PDF'
+                    : 'Convert all again'}
+            </button>
           </div>
         )}
 
+        {notice && (
+          <p className="callout">
+            <TriangleAlert size={16} />
+            {notice}
+          </p>
+        )}
+
         {jobs.length === 0 ? (
-          <p className="empty">Add files, pick a page layout, then convert.</p>
+          <p className="empty">Documents, spreadsheets, slides and images.</p>
         ) : (
           <>
             <ul className="jobs">
@@ -274,26 +317,27 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
                     </span>
                     <div className="job-copy">
                       <div className="job-name">
-                        <strong>{job.file.name}</strong>
+                        <strong title={job.file.name}>{job.file.name}</strong>
                         <span className="mono">{formatBytes(job.file.size)}</span>
                       </div>
-                      <p className={job.status === 'error' ? 'job-status job-status--error' : 'job-status'}>
-                        {statusText(job)}
-                      </p>
+                      {job.status !== 'queued' && (
+                        <p className={job.status === 'error' ? 'job-status job-status--error' : 'job-status'}>
+                          {statusText(job, layout)}
+                        </p>
+                      )}
                       {job.status === 'converting' && <span className="bar" aria-hidden="true" />}
                     </div>
                     <div className="job-actions">
-                      {job.status === 'converting' && <LoaderCircle className="spin muted" size={16} aria-hidden="true" />}
                       {pdf && (
                         <button type="button" className="button" onClick={() => save(pdf, pdfName(job.file.name))}>
                           <Download size={15} />
-                          Download
+                          <span className="button-label">Download</span>
                         </button>
                       )}
                       {job.status === 'error' && (
                         <button type="button" className="button" onClick={() => retry(job.id)}>
                           <RotateCcw size={15} />
-                          Retry
+                          <span className="button-label">Retry</span>
                         </button>
                       )}
                       <button
@@ -312,8 +356,13 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
 
             <div className="footer">
               <span className="mono muted" aria-live="polite">
-                {outputs.length} of {jobs.length} converted{failed > 0 ? `, ${failed} failed` : ''}
+                {finished === 0 && !busy
+                  ? `${jobs.length} ${jobs.length === 1 ? 'file' : 'files'}`
+                  : `${outputs.length} of ${jobs.length} converted${failed > 0 ? `, ${failed} failed` : ''}`}
               </span>
+              <button type="button" className="link" onClick={() => commit([])}>
+                Clear
+              </button>
               <div className="footer-actions">
                 {outputs.length > 1 && (
                   <>
@@ -327,26 +376,32 @@ export default function App({ convert = convertFile, preload = preloadOffice }: 
                     </button>
                   </>
                 )}
-                <button type="button" className="button" onClick={() => commit([])}>
-                  Clear
-                </button>
               </div>
             </div>
           </>
         )}
       </section>
+
+      {dragging && (
+        <div className="drop-overlay" aria-hidden="true">
+          <span>Drop to add files</span>
+        </div>
+      )}
     </main>
   )
 }
 
-function statusText(job: Job): string {
+function statusText(job: Job, currentLayout: Layout): string {
   switch (job.status) {
     case 'queued':
-      return 'Queued'
+      return ''
     case 'converting':
       return job.note ?? 'Converting'
-    case 'done':
-      return job.pdf ? `PDF ready, ${formatBytes(job.pdf.size)}` : 'PDF ready'
+    case 'done': {
+      const size = job.pdf ? `, ${formatBytes(job.pdf.size)}` : ''
+      const made = job.layout && job.layout !== currentLayout ? ` (${job.layout})` : ''
+      return `PDF ready${size}${made}`
+    }
     case 'error':
       return job.note ?? 'Conversion failed'
   }
